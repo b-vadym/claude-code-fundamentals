@@ -1,3 +1,31 @@
 #slidev-goto-dialog {
   display: none !important;
 }
+
+/* Allow vertical scrolling on slides with overflowing content */
+.slidev-slide-content {
+  overflow-y: auto !important;
+}
+
+.slidev-layout {
+  overflow-y: auto !important;
+  max-height: 100% !important;
+}
+
+/* Thin but visible scrollbar */
+.slidev-layout::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slidev-layout::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slidev-layout::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 3px;
+}
+
+.slidev-layout::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}

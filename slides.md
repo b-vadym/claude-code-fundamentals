@@ -54,38 +54,111 @@ layout: section
 # Установка та перший запуск
 
 ---
+hideInToc: true
+---
+
+# Системні вимоги
+
+<v-clicks>
+
+### Операційна система
+
+- **macOS** 13.0+
+- **Windows** 10 1809+ або Windows Server 2019+
+- **Ubuntu** 20.04+ / **Debian** 10+ / **Alpine** 3.19+
+
+### Залізо та мережа
+
+- 4 GB+ RAM, x64 або ARM64
+- Інтернет-з'єднання обов'язкове
+
+### Shell
+
+- Bash, Zsh, PowerShell або CMD
+- Native Windows потребує [Git for Windows](https://git-scm.com/downloads/win) (WSL — ні)
+
+### Локація
+
+- [Країни, де доступний Anthropic](https://www.anthropic.com/supported-countries)
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/setup#system-requirements" label="code.claude.com/docs/en/setup#system-requirements" />
+
+<!--
+Перед установкою — перевірте вимоги. Сучасна macOS, Windows 10+, основні Linux-дистрибутиви. 4 гіга оперативки мінімум. Для native Windows потрібен Git for Windows — він дає Bash середовище. WSL обходиться без нього. Також перевірте, що ваша країна в списку підтримуваних Anthropic — інакше авторизація не пройде.
+-->
+
+---
 
 # Способи установки
 
 <v-clicks>
 
-### Рекомендований спосіб (macOS / Linux / WSL)
+### Native installer (рекомендовано — auto-update в фоні)
+
 ```bash
+# macOS / Linux / WSL
 curl -fsSL https://claude.ai/install.sh | bash
-```
 
-### Windows PowerShell
-```powershell
+# Windows PowerShell
 irm https://claude.ai/install.ps1 | iex
+
+# Windows CMD
+curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd
 ```
 
-### Package Managers
+### Package managers (без auto-update)
+
 ```bash
-brew install --cask claude-code    # Homebrew (macOS)
-winget install Anthropic.ClaudeCode  # Windows
+brew install --cask claude-code        # Homebrew (macOS) — stable channel
+brew install --cask claude-code@latest # latest channel
+winget install Anthropic.ClaudeCode    # Windows
 ```
 
-### npm (deprecated, але працює)
+### npm (deprecated)
+
 ```bash
-npm install -g @anthropic-ai/claude-code
+npm install -g @anthropic-ai/claude-code   # потребує Node.js 18+
 ```
 
 </v-clicks>
 
-<DocRef url="https://code.claude.com/docs/en/setup" label="code.claude.com/docs/en/setup" />
+<DocRef url="https://code.claude.com/docs/en/setup#install-claude-code" label="code.claude.com/docs/en/setup#install-claude-code" />
 
 <!--
-Є кілька способів установки. Рекомендований — через curl скрипт, він автоматично оновлюється. npm варіант вже deprecated, але все ще працює.
+Native installer — рекомендований, бо оновлюється сам у фоні. Три варіанти для Windows: PowerShell, CMD, або через WSL (там linux-скрипт). Homebrew і WinGet працюють, але оновлення руками: brew upgrade або winget upgrade. Homebrew має два cask: claude-code (stable, тиждень затримки) і claude-code@latest (свіжі релізи). npm варіант deprecated, але все ще працює — потребує Node 18+. Не використовуйте sudo npm install -g — проблеми з правами.
+-->
+
+---
+hideInToc: true
+---
+
+# Перевірка установки — `claude doctor`
+
+```text
+Diagnostics
+└ Currently running: native (2.1.111)
+└ Path: /home/vadym/.local/share/claude/versions/2.1.111
+└ Config install method: native
+└ Search: OK (bundled)
+
+Updates
+└ Auto-updates: enabled
+└ Auto-update channel: latest
+└ Stable version: 2.1.97
+└ Latest version: 2.1.111
+
+Version locks
+└ 2.1.111: PID 132548 (running)
+└ 2.1.109: PID 113874 (running)
+└ 2.1.110: PID 3385099 (running)
+```
+
+<DocRef url="https://code.claude.com/docs/en/troubleshooting#get-more-help" label="code.claude.com/docs/en/troubleshooting" />
+
+<!--
+claude doctor — діагностика установки. Показує три блоки. Diagnostics: яка версія запущена, де лежить, install method, чи ripgrep знайдено. Updates: auto-update канал (latest або stable), свіжі версії. Version locks: активні PID-и процесів на різних версіях — якщо бачите кілька, значить у вас відкрито кілька сесій. Якщо щось не так — спершу запускайте claude doctor, потім /feedback.
 -->
 
 ---

@@ -1916,38 +1916,61 @@ layout: section
 
 ---
 
-# Extended Thinking та Git
-
-<div class="grid grid-cols-2 gap-8">
-
-<div>
+# `/effort` — Рівень адаптивного reasoning
 
 <v-clicks>
 
-### Extended Thinking
+| Рівень | Коли вмикати |
+|---|---|
+| `low` | Короткі, латенсі-чутливі задачі, без складних рішень |
+| `medium` | Баланс ціни та якості для cost-sensitive роботи |
+| `high` | Мінімум для intelligence-sensitive задач |
+| `xhigh` | **Default на Opus 4.7** — найкраще для кодингу / агентики |
+| `max` | Максимум reasoning — тільки поточна сесія, ризик overthinking |
+
+### Підтримка моделями
+
+- **Opus 4.7** — `low / medium / high / xhigh / max` (default: `xhigh`)
+- **Opus 4.6, Sonnet 4.6** — `low / medium / high / max` (default: `high`, або `medium` на Pro/Max)
+
+### Як встановити
+
 ```bash
-# Toggle в сесії
-Option+T / Alt+T
+/effort             # відкриває слайдер
+/effort xhigh       # виставити напряму
+/effort auto        # скинути до default моделі
 
-# Рівень глибини
-/effort low      # Швидко, просто
-/effort medium   # Збалансовано
-/effort high     # Глибоко
-/effort max      # Максимум
+claude --effort high                            # на одну сесію
+export CLAUDE_CODE_EFFORT_LEVEL=high            # env (виграє над settings)
+```
 
-# Адаптивне на Opus/Sonnet 4.6
-# Автоматично обирає глибину
+```json
+// settings.json
+{ "effortLevel": "high" }
 ```
 
 </v-clicks>
 
-</div>
+<v-click>
 
-<div>
+> Для разового "подумай глибше" — додайте слово **ultrathink** у промпт, ефорт не змінюючи.
+
+</v-click>
+
+<DocRef url="https://code.claude.com/docs/en/model-config#adjust-effort-level" label="code.claude.com/docs/en/model-config#adjust-effort-level" />
+
+<!--
+/effort керує адаптивним reasoning — модель сама вирішує, скільки думати на кожному кроці. П'ять рівнів: low, medium, high, xhigh, max. На Opus 4.7 доступні всі п'ять, дефолт — xhigh. На Opus 4.6 та Sonnet 4.6 — чотири рівні без xhigh, дефолт high (або medium на Pro/Max). max — без обмежень по токенам, тільки поточна сесія, легко в overthinking. Виставляти можна через /effort інтерактивно, слайдером у /model, прапором --effort, env-змінною CLAUDE_CODE_EFFORT_LEVEL, полем effortLevel у settings.json, або полем effort у frontmatter скіла чи субагента. Пріоритет: env > session > model default. Лайфхак: якщо хочете разово поглибити міркування — напишіть "ultrathink" у промпт. Воно додасть in-context інструкцію, але не змінить виставлений рівень.
+-->
+
+---
+hideInToc: true
+---
+
+# Git інтеграція — `/commit`, `/pr`, worktree
 
 <v-clicks>
 
-### Git інтеграція
 ```bash
 # Комміт з осмисленим повідомленням
 /commit
@@ -1962,8 +1985,9 @@ claude --worktree feat-1
 claude --from-pr 123
 ```
 
-### Формат коміту:
-```
+### Формат коміту
+
+```text
 feat: add user authentication
 
 Implement JWT-based auth with refresh tokens.
@@ -1972,17 +1996,20 @@ Includes middleware, tests, and migration.
 Co-Authored-By: Claude ...
 ```
 
+### Extended thinking у сесії
+
+- `Option+T` / `Alt+T` — toggle thinking на поточному повідомленні
+- "ultrathink" у тексті промпту — разове поглиблення reasoning
+
 </v-clicks>
-
-</div>
-
-</div>
 
 <DocRef url="https://code.claude.com/docs/en/common-workflows" label="code.claude.com/docs/en/common-workflows" />
 
 <!--
-Extended thinking — Claude думає глибше перед відповіддю. На складних задачах — обов'язково. Git інтеграція — /commit і /pr це must-have для щоденної роботи.
+/commit аналізує staged зміни і пише conventional-style повідомлення. /pr create відкриває PR через gh і теж генерує опис. Worktree-флаг створює ізольовану робочу копію в окремій директорії — зручно для паралельних фіч. --from-pr підтягує контекст відкритого PR. Attribution (Co-Authored-By у коміті) вимикається через settings.json.
 -->
+
+
 
 ---
 hideInToc: true

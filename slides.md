@@ -162,26 +162,59 @@ claude doctor — діагностика установки. Показує тр
 -->
 
 ---
+hideInToc: true
+---
+
+# Авторизація — login або API key
+
+<v-clicks>
+
+### OAuth через браузер (Pro / Max / Team / Enterprise)
+
+```bash
+claude            # перший запуск → відкриває браузер
+/login            # перелогінитись всередині сесії
+/logout           # вийти
+/status           # який метод авторизації активний
+```
+
+### API key (Console / pay-as-you-go)
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # ключ з console.anthropic.com
+```
+
+### Long-lived token для CI / скриптів
+
+```bash
+claude setup-token                        # згенерувати OAuth-токен на рік
+export CLAUDE_CODE_OAUTH_TOKEN=<token>    # використати у CI
+```
+
+</v-clicks>
+
+<v-click>
+
+> Порядок пріоритету: Bedrock/Vertex/Foundry → `ANTHROPIC_AUTH_TOKEN` → `ANTHROPIC_API_KEY` → `apiKeyHelper` → `CLAUDE_CODE_OAUTH_TOKEN` → subscription OAuth.
+
+</v-click>
+
+<DocRef url="https://code.claude.com/docs/en/authentication" label="code.claude.com/docs/en/authentication" />
+
+<!--
+Три шляхи. Перший — OAuth через браузер: запускаєте claude, відкривається вкладка, логінитесь у Claude.ai. Працює для Pro, Max, Team, Enterprise. Другий — API key з Console: підходить для тих, хто платить по факту використання або хоче окремий білінг. Ключ в ANTHROPIC_API_KEY. Третій — long-lived token для CI: claude setup-token генерує OAuth-токен на рік, кладете в CLAUDE_CODE_OAUTH_TOKEN. Важливо: порядок пріоритету. Якщо у вас встановлений ANTHROPIC_API_KEY і підписка Pro — API key виграє. Якщо організація disabled — буде помилка. Розв'язання: unset ANTHROPIC_API_KEY, перевіряйте /status. Для хмарних провайдерів (Bedrock/Vertex/Foundry) — окремі env vars, browser login не потрібен.
+-->
+
+---
 
 # Перший запуск
 
 <v-clicks>
 
 ```bash
-# Перевірка установки
-claude --version
-
-# Діагностика
-claude doctor
-
-# Авторизація
-claude auth login
-
-# Старт!
+# Авторизація (або OAuth, або API key — див. попередній слайд)
 claude
-```
 
-```bash
 # Або одразу з запитом
 claude "поясни що робить цей файл"
 
@@ -234,6 +267,49 @@ claude /powerup
 
 <!--
 powerup — це як wizard для налаштування. Особливо корисний для новачків — проведе через усі кроки і створить базову конфігурацію проєкту.
+-->
+
+---
+
+# `@` — Посилання на файли та теки
+
+<v-click>
+
+Прикріплюйте файли, теки або MCP-ресурси прямо в промпт — Claude завантажить їх у контекст.
+
+</v-click>
+
+<v-clicks>
+
+```bash
+# Один файл
+> поясни @src/auth/login.ts
+
+# Кілька файлів — порівняння
+> порівняй @old-api.ts з @new-api.ts
+
+# Уся тека
+> зроби рефакторинг @src/components/
+
+# MCP-ресурс
+> підсумуй @github:issue://123
+```
+
+</v-clicks>
+
+<v-clicks>
+
+- **Tab** після `@` — fuzzy-пошук файлів
+- `.gitignore` та `.claudeignore` фільтрують autocomplete
+- Paste зображення → автоматичне `@`-посилання
+- Великі файли з'їдають контекст — цільтеся точково
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/common-workflows" label="code.claude.com/docs/en/common-workflows" />
+
+<!--
+@ — один з найчастіше вживаних механізмів. Замість копіпасти вмісту у промпт, просто згадайте файл через @ і Claude прочитає його сам. Працює з file autocomplete: натисніть Tab і отримаєте fuzzy-пошук по файлах проєкту. Теки підтягують весь вміст рекурсивно — обережно з великими теками. Для MCP-серверів теж через @ — наприклад @github:issue://123 підтягне issue з GitHub.
 -->
 
 ---

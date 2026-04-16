@@ -437,7 +437,46 @@ layout: section
 <DocRef url="https://code.claude.com/docs/en/memory" label="code.claude.com/docs/en/memory" />
 
 <!--
-CLAUDE.md — це як README, але для AI. Тут ви описуєте правила, архітектуру, команди — все, що Claude повинен знати про ваш проєкт.
+CLAUDE.md — це як README, але для AI. Тут ви описуєте правила, архітектуру, команди — все, що Claude повинен знати про ваш проєкт. Писати з нуля не обов'язково — на наступному слайді побачимо, як /init згенерує стартову версію з вашого репо.
+-->
+
+---
+hideInToc: true
+---
+
+# `/init` — Не пишіть CLAUDE.md з нуля
+
+<v-clicks>
+
+```bash
+claude
+> /init                              # читає репо → генерує CLAUDE.md
+
+# Інтерактивний флоу — також налаштує skills, hooks, personal memory
+CLAUDE_CODE_NEW_INIT=1 claude
+> /init
+```
+
+### Що витягнув `/init` з реального проєкту `zipstay`
+
+- **Docker-середовище** — `make rebuild`, `make up`, shell в `app` контейнер
+- **Команди** — `composer psalm`, `./vendor/bin/phpunit`, `yarn dev`, `bin/console …`
+- **Порти сервісів** — API `54400`, Postgres `54401`, Redis `54403`, Mercure `54408`
+- **Архітектура** — monorepo `backend/` (Symfony 7.4) + `frontend/` (Vue 3.5) + `api-proxy/`
+- **DDD-структура модулів** — `src/{Module}/{ApiResource,Controller,Entity,...}`
+
+</v-clicks>
+
+<v-click>
+
+> Згенероване — це чернетка. Допилюйте руками під правила команди.
+
+</v-click>
+
+<DocRef url="https://code.claude.com/docs/en/commands" label="code.claude.com/docs/en/commands" />
+
+<!--
+Щойно подивилися, як виглядає CLAUDE.md. Тепер — як його не писати руками. /init аналізує репозиторій: читає package.json, composer.json, Makefile, docker-compose, README — і складає стартовий CLAUDE.md. На прикладі zipstay: він витяг make-команди, composer-скрипти, yarn-команди фронта, порти з docker-compose, і навіть зрозумів DDD-структуру модулів. CLAUDE_CODE_NEW_INIT=1 вмикає інтерактивний флоу — проходить також по skills, hooks, персональній памʼяті. Важливо: це чернетка, не фінал. Допилюйте під правила команди, специфічні conventions, gotchas — те, чого Claude не побачить зі структури коду.
 -->
 
 ---
@@ -477,45 +516,84 @@ graph LR
 
 ---
 
-# Settings та Rules
+# Settings — JSON-конфігурація
 
 <v-clicks>
 
-### Settings файли
+### Три рівні, зверху вниз перекриваються
+
 ```bash
-~/.claude/settings.json         # Глобальні налаштування
-.claude/settings.json           # Проєктні (в git)
-.claude/settings.local.json     # Локальні (gitignored)
+~/.claude/settings.json         # User — ваші глобальні налаштування
+.claude/settings.json           # Project — для команди (в git)
+.claude/settings.local.json     # Project Local — тільки ви (gitignored)
 ```
 
-### Rules — умовні правила по шляхах
+### Що туди кладуть
+
+- `permissions` — allow / deny / ask для інструментів і команд
+- `env` — змінні оточення (`DISABLE_AUTOUPDATER`, `USE_BUILTIN_RIPGREP`…)
+- `hooks` — автоматика на події `PreToolUse`, `PostToolUse`, `SessionStart`…
+- `model`, `autoUpdatesChannel`, `attribution` — поведінка сесії
+- `mcpServers` — через `.mcp.json` (про це окремий слайд)
+
+</v-clicks>
+
+<v-click>
+
+> Все, що у `settings.local.json`, **не** комітиться — секрети, особисті tweak-и.
+
+</v-click>
+
+<DocRef url="https://code.claude.com/docs/en/settings" label="code.claude.com/docs/en/settings" />
+
+<!--
+Settings — це JSON-файли, які керують поведінкою Claude Code. Три рівні: user (глобальні, ~/.claude), project (спільні для команди, комітяться), local (ваші приватні — в gitignore). Перекриття іде від user → project → local, тобто локальні налаштування виграють. В одному файлі — permissions, env, hooks, вибір моделі, канал оновлень, MCP-сервери. Приклади settings подивимось через слайд, а зараз переходимо до Rules — це вже не JSON, а markdown-правила, що підключаються лише коли Claude торкається певних файлів.
+-->
+
+---
+hideInToc: true
+---
+
+# Rules — Markdown-правила під path-патерни
+
+<v-clicks>
+
+### Навіщо окремо від CLAUDE.md?
+
+- **Ледачо завантажуються** — тільки коли Claude відкриває відповідні файли
+- **Економлять контекст** — не замусолюють сесію нерелевантним
+- **Точкові інструкції** — різні правила для frontend, backend, міграцій
+
+### Приклад: правила лише для UI
 
 ```markdown
 <!-- .claude/rules/frontend.md -->
 ---
 paths: ["src/components/**", "src/pages/**"]
 ---
-- Використовуй React functional components
-- Стилі через Tailwind CSS
-- Кожен компонент має мати тести
+- Functional components, хуки — не classes
+- Стилі через Tailwind, без inline style
+- Кожен компонент має unit-тест
 ```
+
+### Приклад: правила лише для API
 
 ```markdown
 <!-- .claude/rules/api.md -->
 ---
 paths: ["src/api/**", "src/services/**"]
 ---
-- Валідація через Zod schemas
-- Обов'язково обробляй помилки
-- Логування через winston
+- Валідація вхідного через Zod
+- Обробка помилок — завжди `try/catch` + лог
+- Логування — winston, не `console.log`
 ```
 
 </v-clicks>
 
-<DocRef url="https://code.claude.com/docs/en/settings" label="code.claude.com/docs/en/settings" />
+<DocRef url="https://code.claude.com/docs/en/memory#path-specific-rules" label="code.claude.com/docs/en/memory#path-specific-rules" />
 
 <!--
-Rules — потужна фіча. Правила завантажуються тільки коли Claude працює з файлами, що підпадають під path-паттерн. Це економить контекст і дає точніші інструкції.
+Rules — це path-scoped markdown-інструкції. Відрізняються від CLAUDE.md тим, що завантажуються тільки коли Claude працює з файлами, що підпадають під glob з frontmatter. Контекст не роздувається. Типова структура — окремий файл на зону відповідальності: frontend.md, api.md, migrations.md, tests.md. Всередині — правила, які мають сенс саме там. Приклад: правила верстки нічого не роблять, коли Claude редагує SQL-міграцію.
 -->
 
 ---

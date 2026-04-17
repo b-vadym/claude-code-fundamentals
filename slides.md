@@ -2638,6 +2638,56 @@ layout: section
 # Про що поговоримо наступного разу
 
 ---
+hideInToc: true
+---
+
+# Discord-канал — стежимо за новинами разом
+
+<div class="grid grid-cols-2 gap-8 mt-6">
+<div>
+
+<v-clicks>
+
+### 📣 Що там буде
+
+- Пости з **офіційного блога Claude Code** (auto-feed)
+- Release notes нових версій CLI
+- Важливі оновлення MCP, skills, plugins
+- Нові моделі: Opus / Sonnet / Haiku
+- Знахідки з community: skills, hooks, subagents
+
+</v-clicks>
+
+</div>
+<div>
+
+<v-clicks>
+
+### 🤝 Навіщо
+
+- Один канал замість 10 RSS / Twitter / GitHub releases
+- Обговорення в команді — сразу в контексті
+- Онбординг нових розробників пришвидшується
+- Питання → відповіді прямо в каналі
+
+</v-clicks>
+
+</div>
+</div>
+
+<v-click>
+
+<div class="mt-8 text-center text-xl">
+🔗 Посилання на канал — у Slack/пошті після презентації
+</div>
+
+</v-click>
+
+<!--
+Щоб не загубитися в потоці релізів — ми створили окремий Discord-канал, де автоматично зʼявляються пости з блога Claude Code, release notes, важливі оновлення MCP, плагінів, skills. Плюс всередині самого каналу обговорюємо — хто що спробував, які workflow зайшли, які граблі. Для команди це один source of truth, замість того щоб кожен моніторив Twitter, RSS, GitHub releases окремо. Посилання на канал пришлю окремо — Slack або корпоративна пошта.
+-->
+
+---
 layout: center
 class: text-center
 ---

@@ -2822,6 +2822,40 @@ Esc Esc      # Rewind/summarize
 -->
 
 ---
+
+# Де вчитися далі
+
+<div class="grid grid-cols-2 gap-6">
+<div>
+
+### Офіційні курси Anthropic
+
+🎓 **Claude Code in Action** — практичний курс від команди Anthropic
+[anthropic.skilljar.com](https://anthropic.skilljar.com/claude-code-in-action)
+
+📚 **Anthropic Learn** — хаб усіх курсів: промпт-інжиніринг, API, Claude Code
+[anthropic.com/learn](https://www.anthropic.com/learn)
+
+</div>
+<div>
+
+### Безкоштовні курси
+
+🆓 **DeepLearning.AI** — короткі курси від Andrew Ng у партнерстві з Anthropic
+[learn.deeplearning.ai](https://learn.deeplearning.ai/)
+
+<div class="mt-6 text-sm opacity-70">
+Шукайте курси <code>Claude</code>, <code>MCP</code>, <code>Agentic AI</code> — оновлюються кожні кілька місяців.
+</div>
+
+</div>
+</div>
+
+<!--
+Anthropic має безкоштовний курс Claude Code in Action — рекомендую пройти після цієї презентації, там глибше розбирають workflow. На anthropic.com/learn — хаб усіх навчальних матеріалів. DeepLearning.AI тримає короткі безкоштовні курси від Andrew Ng — там є окремі модулі по MCP та агентному AI.
+-->
+
+---
 layout: center
 class: text-center
 ---

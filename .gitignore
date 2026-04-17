@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.pdf
 .claude/
+.playwright-mcp/
+session-report-*.html

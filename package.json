@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "slidev --open",
-    "build": "slidev build",
+    "build": "slidev build --base /claude-code-fundamentals/",
     "export": "slidev export"
   },
   "dependencies": {

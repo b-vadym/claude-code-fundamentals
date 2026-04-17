@@ -1951,75 +1951,6 @@ hideInToc: true
 hideInToc: true
 ---
 
-# Когнітивний борг — нова реальність 2026
-
-<v-clicks>
-
-**Технічний борг** — позика у майбутніх себе, коли робиш не найкращим шляхом.
-
-**Когнітивний борг** — позика у майбутніх себе, коли **не розумієш що і як було зроблено**.
-
-</v-clicks>
-
-<v-click>
-
-> З агентами ми генеруємо код **швидше**, ніж наша когнітивна система встигає засвоїти структуру, патерни та прийняті рішення.
-
-</v-click>
-
-<v-clicks>
-
-### Як зменшити:
-- **ADR наприкінці сесії** — попроси агента сформувати Architecture Decision Record
-- **Перевіряй документи** — переконайся що **ти** розумієш, а не лише агент
-- **Інструменти осмислення** — далі подивимось плагіни, що допомагають це робити 👇
-
-</v-clicks>
-
-<!--
-Технічний борг всі знають. Але у 2026 з'явився новий тип — когнітивний борг. Раніше ми працювали інкрементально, маленькими кроками, і знання про проєкт встигали засвоюватися. Тепер з агентами можна вибухово згенерувати код, навіть інкрементна робота йде швидше. Виникає борг розуміння — повернешся до коду через баг чи розширення і не зрозумієш що було зроблено. ADR наприкінці сесії — один з прийомів. Наступні кілька слайдів — конкретні плагіни, що допомагають тримати борг під контролем: Visual Explainer для відновлення mental-model, Session Report для аналітики, Skill Creator для структурування процесів, Statusline для контролю контексту.
--->
-
----
-hideInToc: true
----
-
-# Visual Explainer — AI генерує інтерактивні HTML
-
-<v-clicks>
-
-### 6 команд, що перетворюють контекст у готовий артефакт
-
-| Команда | Що генерує |
-|---|---|
-| `/visual-explainer:project-recap` | HTML mental-model поточного проєкту (decisions, hotspots) |
-| `/visual-explainer:generate-visual-plan` | Детальний plan: state machines, edge cases, snippets |
-| `/visual-explainer:generate-slides` | Magazine-quality slide deck у single HTML |
-| `/visual-explainer:generate-web-diagram` | Standalone HTML diagram, відкривається у браузері |
-| `/visual-explainer:diff-review` | Before/after architecture + code review як HTML |
-| `/visual-explainer:plan-review` | Поточний стан vs запропонований план |
-| `/visual-explainer:fact-check` | Верифікує документ проти кодобази, коригує неточності |
-
-### Приклад
-
-```bash
-> /visual-explainer:project-recap
-# → зберігає recap.html з інтерактивною mental-model'ю
-# → collapsible секції, code refs, візуалізація dependencies
-```
-
-</v-clicks>
-
-<DocRef url="https://github.com/nicobailon/visual-explainer" label="github.com/nicobailon/visual-explainer" />
-
-<!--
-Ось перший інструмент проти когнітивного боргу. Visual Explainer — про виходи, які можна показати людині, щоб вона зрозуміла те, що зробив агент. Project-recap — моя улюблена: відновлює mental-model великого проєкту після відпустки. Коли ревʼюверу треба зрозуміти тиждень роботи — generate-visual-plan або diff-review зробить інтерактивну сторінку з діаграмами, before/after, edge cases. Fact-check перевіряє, чи документ ще відповідає кодобазі, і коригує розходження. Все у HTML, без залежностей — шлеш колезі, відкриває у браузері, розуміє за хвилини замість годин. Встановлення: /plugin marketplace add nicobailon/visual-explainer.
--->
-
----
-hideInToc: true
----
-
 # Session Report — аналітика ваших сесій
 
 <v-clicks>
@@ -2184,6 +2115,75 @@ hideInToc: true
 
 <!--
 RevDiff — це code review прямо в терміналі. Не треба перемикатися в IDE. Навігація vim-style, анотуєш рядки, виходиш — і Claude автоматично отримує твої нотатки у структурованому форматі. Реально пришвидшує review workflow.
+-->
+
+---
+hideInToc: true
+---
+
+# Когнітивний борг — нова реальність 2026
+
+<v-clicks>
+
+**Технічний борг** — позика у майбутніх себе, коли робиш не найкращим шляхом.
+
+**Когнітивний борг** — позика у майбутніх себе, коли **не розумієш що і як було зроблено**.
+
+</v-clicks>
+
+<v-click>
+
+> З агентами ми генеруємо код **швидше**, ніж наша когнітивна система встигає засвоїти структуру, патерни та прийняті рішення.
+
+</v-click>
+
+<v-clicks>
+
+### Як зменшити:
+- **ADR наприкінці сесії** — попроси агента сформувати Architecture Decision Record
+- **Перевіряй документи** — переконайся що **ти** розумієш, а не лише агент
+- **Інструменти осмислення** — далі подивимось плагіни, що допомагають це робити 👇
+
+</v-clicks>
+
+<!--
+Технічний борг всі знають. Але у 2026 з'явився новий тип — когнітивний борг. Раніше ми працювали інкрементально, маленькими кроками, і знання про проєкт встигали засвоюватися. Тепер з агентами можна вибухово згенерувати код, навіть інкрементна робота йде швидше. Виникає борг розуміння — повернешся до коду через баг чи розширення і не зрозумієш що було зроблено. ADR наприкінці сесії — один з прийомів. Наступні кілька слайдів — конкретні плагіни, що допомагають тримати борг під контролем: Visual Explainer для відновлення mental-model, Session Report для аналітики, Skill Creator для структурування процесів, Statusline для контролю контексту.
+-->
+
+---
+hideInToc: true
+---
+
+# Visual Explainer — AI генерує інтерактивні HTML
+
+<v-clicks>
+
+### 6 команд, що перетворюють контекст у готовий артефакт
+
+| Команда | Що генерує |
+|---|---|
+| `/visual-explainer:project-recap` | HTML mental-model поточного проєкту (decisions, hotspots) |
+| `/visual-explainer:generate-visual-plan` | Детальний plan: state machines, edge cases, snippets |
+| `/visual-explainer:generate-slides` | Magazine-quality slide deck у single HTML |
+| `/visual-explainer:generate-web-diagram` | Standalone HTML diagram, відкривається у браузері |
+| `/visual-explainer:diff-review` | Before/after architecture + code review як HTML |
+| `/visual-explainer:plan-review` | Поточний стан vs запропонований план |
+| `/visual-explainer:fact-check` | Верифікує документ проти кодобази, коригує неточності |
+
+### Приклад
+
+```bash
+> /visual-explainer:project-recap
+# → зберігає recap.html з інтерактивною mental-model'ю
+# → collapsible секції, code refs, візуалізація dependencies
+```
+
+</v-clicks>
+
+<DocRef url="https://github.com/nicobailon/visual-explainer" label="github.com/nicobailon/visual-explainer" />
+
+<!--
+Ось перший інструмент проти когнітивного боргу. Visual Explainer — про виходи, які можна показати людині, щоб вона зрозуміла те, що зробив агент. Project-recap — моя улюблена: відновлює mental-model великого проєкту після відпустки. Коли ревʼюверу треба зрозуміти тиждень роботи — generate-visual-plan або diff-review зробить інтерактивну сторінку з діаграмами, before/after, edge cases. Fact-check перевіряє, чи документ ще відповідає кодобазі, і коригує розходження. Все у HTML, без залежностей — шлеш колезі, відкриває у браузері, розуміє за хвилини замість годин. Встановлення: /plugin marketplace add nicobailon/visual-explainer.
 -->
 
 ---

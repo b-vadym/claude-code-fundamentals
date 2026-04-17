@@ -4,7 +4,6 @@ background: https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920
 title: "Claude Code: Fundamentals"
 info: |
   ## Claude Code: Fundamentals
-  Повний гайд по AI-асистенту в терміналі
 class: text-center
 drawings:
   persist: false

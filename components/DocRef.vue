@@ -1,12 +1,17 @@
 <script setup lang="ts">
-defineProps<{
+const props = defineProps<{
   url: string
   label?: string
+  offset?: number
 }>()
+
+const bottomStyle = props.offset
+  ? { bottom: `${0.6 + props.offset * 1.1}rem` }
+  : undefined
 </script>
 
 <template>
-  <div class="doc-ref">
+  <div class="doc-ref" :style="bottomStyle">
     <a :href="url" target="_blank" rel="noopener">
       📖 {{ label || url.replace(/^https?:\/\//, '') }}
     </a>

@@ -239,6 +239,8 @@ hideInToc: true
 | **Team** | $25–125 /seat/міс | як Pro / Max | усі | SSO, central billing, 5–150 місць |
 | **Enterprise** | seat + API usage | custom | усі | HIPAA, RBAC, audit, self-hosted |
 
+**Усі платні плани** включають також **claude.ai (web)** і **Claude Desktop** — той самий акаунт, та сама підписка.
+
 </v-clicks>
 
 <DocRef url="https://claude.com/pricing" label="claude.com/pricing" />
@@ -260,6 +262,7 @@ hideInToc: true
   - usage рівня Pro — вистачає для перших кроків і одиночних сесій
 - Розуміємо, що буде потрібен **Team Premium** — ~$125 /seat/міс, 5× usage проти Standard (рівень Max 5x)
   - для агентних workflows, subagents, паралельних задач
+- **Бонус підписки** — та сама ціна покриває **claude.ai (web)** і **Claude Desktop** — для не-CLI задач (research, writing, Projects)
 - **Плюс Team загалом** — ранній доступ до нових фіч: напр., **Auto Mode** вийшов як research preview спочатку для **Team**, потім Enterprise/API
 - **Перехід на Premium** — коли команда адаптується і клієнт погодить бюджет
 - Extra usage доступне на всіх платних планах — не впремось у стіну, продовжимо за API-ставками

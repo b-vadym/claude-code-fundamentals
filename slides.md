@@ -960,7 +960,204 @@ hideInToc: true
 <DocRef url="https://code.claude.com/docs/en/sandboxing" label="code.claude.com/docs/en/sandboxing" />
 
 <!--
-Конфігурація sandbox дозволяє тонко налаштувати межі. allowWrite — додаткові директорії для запису. denyRead — заборонити читання чутливих файлів. Network — whitelist доменів. Коли sandbox увімкнений, Bash-команди всередині меж виконуються автоматично — менше промптів, така ж безпека. Ми вже двічі бачили JSON-налаштування — тепер час розібратися з самою "Конфігурацією": де файли лежать, як перекриваються рівні, і що ще туди можна класти.
+Конфігурація sandbox дозволяє тонко налаштувати межі. allowWrite — додаткові директорії для запису. denyRead — заборонити читання чутливих файлів. Network — whitelist доменів. Коли sandbox увімкнений, Bash-команди всередині меж виконуються автоматично — менше промптів, така ж безпека. Далі подивимось на найсильнішу форму ізоляції — готовий devcontainer від Anthropic.
+-->
+
+---
+hideInToc: true
+---
+
+# Devcontainer — готова ізоляція від Anthropic
+
+<div class="grid grid-cols-2 gap-6 text-sm">
+<div>
+
+### Що всередині
+
+- **Node.js 20** + git, ZSH, fzf
+- **Firewall** (`init-firewall.sh`): default-deny, whitelist лише `npm`, `github.com`, Anthropic API
+- **VS Code Dev Containers** інтеграція
+- Збереження history між рестартами
+
+### Навіщо?
+
+У контейнері можна безпечно запускати:
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+без ризику для хостової системи.
+
+</div>
+<div>
+
+### Старт за 4 кроки
+
+1. VS Code + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Клонувати [референсний репо](https://github.com/anthropics/claude-code/tree/main/.devcontainer)
+3. Відкрити у VS Code
+4. **"Reopen in Container"** (Cmd+Shift+P)
+
+### Use cases
+
+- 🔐 Клієнтська робота — проєкти не змішуються
+- 🚀 Онбординг команди — готове середовище за хвилини
+- 🔄 Дзеркалити в CI/CD
+
+<div class="mt-3 text-xs opacity-70">
+⚠️ Не захищає від malicious repo — credentials з контейнера можуть витекти. Використовуйте лише з довіреними репозиторіями.
+</div>
+
+</div>
+</div>
+
+<DocRef url="https://code.claude.com/docs/en/devcontainer" label="code.claude.com/docs/en/devcontainer" />
+
+<!--
+Devcontainer — це найсильніша форма ізоляції, яку пропонує Anthropic з коробки. Готовий образ із Node 20, firewall-ом і всіма DX-плюшками. Ключова фіча — можна безпечно запускати --dangerously-skip-permissions: контейнер ізольований від хостової системи, firewall рубає все крім whitelist. Для команд — ідеально для онбордингу: нова людина клонує репо, "Reopen in Container" — і за хвилини має повне середовище. Важливе застереження з доки: devcontainer не захищає від malicious проєктів — якщо скачаєте якусь дичину і запустите там --dangerously-skip-permissions, credentials з контейнера можуть витекти. Використовуйте тільки з довіреними репо.
+-->
+
+---
+layout: section
+---
+
+# Моделі та reasoning
+
+---
+hideInToc: true
+---
+
+# `/effort` — Рівень адаптивного reasoning
+
+<v-clicks>
+
+| Рівень | Коли вмикати |
+|---|---|
+| `low` | Короткі, латенсі-чутливі задачі, без складних рішень |
+| `medium` | Баланс ціни та якості для cost-sensitive роботи |
+| `high` | Мінімум для intelligence-sensitive задач |
+| `xhigh` | **Default на Opus 4.7** — найкраще для кодингу / агентики |
+| `max` | Максимум reasoning — тільки поточна сесія, ризик overthinking |
+
+### Підтримка моделями
+
+- **Opus 4.7** — `low / medium / high / xhigh / max` (default: `xhigh`)
+- **Opus 4.6, Sonnet 4.6** — `low / medium / high / max` (default: `high`, або `medium` на Pro/Max)
+
+</v-clicks>
+
+<v-click>
+
+> Для разового "подумай глибше" — додайте слово **ultrathink** у промпт, ефорт не змінюючи.
+
+</v-click>
+
+<!--
+/effort керує адаптивним reasoning — модель сама вирішує, скільки думати на кожному кроці. П'ять рівнів: low, medium, high, xhigh, max. На Opus 4.7 доступні всі п'ять, дефолт — xhigh. На Opus 4.6 та Sonnet 4.6 — чотири рівні без xhigh, дефолт high (або medium на Pro/Max). max — без обмежень по токенам, тільки поточна сесія, легко в overthinking. Лайфхак: якщо хочете разово поглибити міркування — напишіть "ultrathink" у промпт. Воно додасть in-context інструкцію, але не змінить виставлений рівень. На наступному слайді — де і як виставляти рівень.
+-->
+
+---
+hideInToc: true
+---
+
+# `/effort` — Як встановити
+
+<div class="grid grid-cols-2 gap-6">
+<div>
+
+### Інтерактивно в сесії
+
+```bash
+/effort             # відкриває слайдер
+/effort xhigh       # виставити напряму
+/effort auto        # скинути до default
+```
+
+### На старті CLI
+
+```bash
+claude --effort high
+```
+
+### Env-змінна (виграє над settings)
+
+```bash
+export CLAUDE_CODE_EFFORT_LEVEL=high
+```
+
+</div>
+<div>
+
+### У `settings.json`
+
+```json
+{ "effortLevel": "high" }
+```
+
+### У frontmatter скіла / субагента
+
+```yaml
+---
+name: reviewer
+effort: high
+---
+```
+
+<div class="mt-4 text-sm opacity-80">
+
+**Пріоритет:** `env` → session (`/effort`, `--effort`) → `settings.json` → model default
+
+</div>
+
+</div>
+</div>
+
+<DocRef url="https://code.claude.com/docs/en/model-config#adjust-effort-level" label="code.claude.com/docs/en/model-config#adjust-effort-level" />
+
+<!--
+Шість місць, де можна виставити effort — від разового в сесії до проєктних налаштувань. Пріоритет важливий: env-змінна перемагає все, потім session-рівень (слеш-команда або --effort прапор), далі settings.json, і нарешті дефолт моделі. Для скілів і субагентів можна окремо задавати рівень у frontmatter — наприклад, для рев'ю коду виставити high, для швидких утиліт — low. Практично: /effort у сесії коли треба тут і зараз, settings.json для проєктного дефолту, env для CI.
+-->
+
+---
+hideInToc: true
+---
+
+# Model opusplan — Opus планує, Sonnet виконує
+
+<v-clicks>
+
+### Ідея:
+**Opus 4.6** — найрозумніший, але повільніший і дорожчий. **Sonnet 4.6** — швидкий і дешевий. А якщо поєднати?
+
+```bash
+claude --model opusplan
+# або в сесії:
+/model opusplan
+```
+
+### Як працює:
+
+```mermaid {scale: 0.65}
+graph LR
+    T[Твій запит] --> O[Opus 4.6<br/>🧠 Планує та рев'юїть]
+    O --> S[Sonnet 4.6<br/>⚡ Виконує код]
+    S --> O
+    O --> R[Результат]
+    style O fill:#8B5CF6,color:#fff
+    style S fill:#10B981,color:#fff
+    style T fill:#F59E0B,color:#fff
+    style R fill:#3B82F6,color:#fff
+```
+
+> **Найкраще з двох світів:** якість планування Opus + швидкість виконання Sonnet
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/model-configuration" label="code.claude.com/docs/en/model-configuration" />
+
+<!--
+opusplan — це гібридний режим. Opus робить те, що він робить найкраще — думає, планує, рев'юїть. А Sonnet швидко виконує код за цим планом. Ти отримуєш якість Opus за ціною ближчу до Sonnet. Для великих задач — ідеальний варіант.
 -->
 
 ---
@@ -1197,19 +1394,12 @@ hideInToc: true
 }
 ```
 
-### Мова відповідей
-```json
-{
-  "language": "uk"
-}
-```
-
 </v-clicks>
 
 <DocRef url="https://code.claude.com/docs/en/settings" label="code.claude.com/docs/en/settings" />
 
 <!--
-Кілька практичних прикладів. Attribution — щоб не було Co-Authored-By у кожному коміті. Permissions — щоб не натискати Enter на кожну npm/git команду. Language — щоб Claude відповідав вашою мовою.
+Кілька практичних прикладів. Attribution — щоб не було Co-Authored-By у кожному коміті. Permissions — щоб не натискати Enter на кожну npm/git команду.
 -->
 
 ---
@@ -1268,16 +1458,12 @@ layout: section
 
 <v-click>
 
-```mermaid {scale: 0.7}
+```mermaid {scale: 0.55}
 graph LR
     CC[Claude Code] --> MCP{MCP Protocol}
     MCP --> GH[GitHub]
-    MCP --> LN[Linear]
-    MCP --> NT[Notion]
+    MCP --> JR[Jira]
     MCP --> PG[PostgreSQL]
-    MCP --> FG[Figma]
-    MCP --> SL[Slack]
-    MCP --> ST[Sentry]
     MCP --> Custom[Your API]
     style CC fill:#8B5CF6,color:#fff
     style MCP fill:#F59E0B,color:#fff
@@ -1393,88 +1579,110 @@ layout: section
 
 ---
 
-# Вбудовані скіли
+# Вбудовані команди + bundled-скіли
 
-<v-clicks>
+<div class="grid grid-cols-2 gap-6 text-sm">
+<div>
 
-| Команда | Опис |
-|---------|------|
-| `/commit` | Створити git commit з осмисленим повідомленням |
-| `/batch` | Масштабні зміни в кодовій базі паралельно |
-| `/simplify` | Переглянути та оптимізувати недавні зміни |
-| `/debug` | Увімкнути debug logging та діагностику |
-| `/loop 5m "prompt"` | Повторювати команду з інтервалом |
-| `/claude-api` | Завантажити довідку по Claude API |
-| `/powerup` | Інтерактивне налаштування для початківців |
-| `/memory` | Перегляд та редагування пам'яті |
-| `/mcp` | Управління MCP серверами |
-| `/hooks` | Перегляд та управління hooks |
-| `/agents` | Створення та управління агентами |
-| `/compact` | Стиснути контекст розмови |
-| `/model` | Переключити модель |
-| `/effort` | Рівень глибини міркування |
+### 🛠 Built-in команди
 
-</v-clicks>
+Фіксована логіка всередині Claude Code.
+
+| Команда | Що робить |
+|---|---|
+| `/help` | Список команд |
+| `/clear` | Нова сесія |
+| `/compact` | Стиснути контекст |
+| `/memory` | Керування CLAUDE.md |
+| `/model` · `/effort` | Модель і reasoning |
+| `/mcp` · `/hooks` · `/agents` | Управління розширеннями |
+| `/cost` · `/config` | Статистика, налаштування |
+| `/init` · `/review` · `/security-review` | Спеціальні workflow |
+
+</div>
+<div>
+
+### 🎯 Bundled-скіли
+
+Markdown-плейбуки, які Claude оркеструє через свої інструменти.
+
+| Скіл | Що робить |
+|---|---|
+| `/simplify` | Рев'ю + оптимізація змін |
+| `/batch` | Масштабні паралельні правки |
+| `/debug` | Debug logging + діагностика |
+| `/loop <інтервал> <cmd>` | Повтор з інтервалом |
+| `/claude-api` | Довідка по Anthropic SDK |
+
+<div class="mt-4 text-xs opacity-80">
+Скіли можна викликати явно (<code>/simplify</code>) або Claude підтягне сам за description.
+</div>
+
+</div>
+</div>
 
 <DocRef url="https://code.claude.com/docs/en/commands" label="code.claude.com/docs/en/commands" />
 
 <!--
-Це вбудовані скіли — slash-команди які доступні в кожній сесії. /commit — мабуть найпопулярніший, а /batch — найпотужніший для масштабних рефакторингів.
+Важливо розрізняти: команди — це фіксована логіка всередині Claude Code (наприклад /compact реально стискає контекст). Bundled-скіли — це markdown-плейбуки з інструкціями, Claude їх виконує своїми звичайними інструментами. У доці їх чітко розділяють, хоча викликаються однаково через слеш. /simplify — переглянути останні зміни. /batch — робити масштабні правки паралельно. /debug — зібрати діагностику. /loop — поставити повтор задачі за інтервалом. /claude-api — розгорнута довідка по Anthropic SDK. Next slide — як писати свої.
 -->
 
 ---
 
 # Створення власних скілів
 
-<v-click>
+<div class="grid grid-cols-2 gap-4 text-sm">
+<div>
 
-### Структура:
+### Структура
 
-```
+```text
 .claude/skills/deploy-check/
-├── SKILL.md           # Головний файл з інструкціями
-├── template.md        # Шаблон для Claude
-├── examples/          # Приклади використання
-└── scripts/           # Допоміжні скрипти
+├── SKILL.md      # обов'язковий
+├── reference.md  # детальна довідка
+├── examples/     # зразки
+└── scripts/      # виконувані скрипти
 ```
 
-</v-click>
+### Де зберігати
 
-<v-click>
+- `~/.claude/skills/…` — особисті
+- `.claude/skills/…` — проєктні (у git)
+- Плагіни — `plugin:skill`
 
-### SKILL.md:
+### Як викликати
+
+- **Автоматично** — Claude матчить за `description`
+- **Явно** — `/deploy-check` у сесії
+
+</div>
+<div>
+
+### SKILL.md
 
 ```markdown
 ---
 name: deploy-check
-description: Перевірка готовності до деплою
-allowed-tools: Bash Read Grep Glob
+description: Перевірка готовності до релізу.
+  Трігер: "чи готово до деплою?", "reliability check".
+allowed-tools: Bash(npm test) Bash(git status) Read Grep
 ---
 
 ## Інструкції
-1. Перевір що всі тести проходять: `npm test`
-2. Перевір що немає TODO/FIXME в коді
-3. Перевір що версія в package.json оновлена
-4. Перевір що CHANGELOG.md оновлений
-5. Виведи звіт у форматі:
-   - ✅ / ❌ для кожного пункту
-   - Загальний статус: READY / NOT READY
+1. `npm test` — всі тести проходять
+2. `grep -r TODO\|FIXME src/` — немає
+3. `package.json` версія оновлена
+4. `CHANGELOG.md` має запис
+5. Звіт: ✅/❌ + READY / NOT READY
 ```
 
-</v-click>
-
-<v-click>
-
-```bash
-claude /deploy-check    # Використання
-```
-
-</v-click>
+</div>
+</div>
 
 <DocRef url="https://code.claude.com/docs/en/skills" label="code.claude.com/docs/en/skills" />
 
 <!--
-Свої скіли — це просто markdown файли з інструкціями. Дуже потужний механізм для стандартизації процесів в команді. Один раз написав — вся команда використовує.
+Скіл — це директорія з SKILL.md всередині. У frontmatter обов'язковий name і рекомендований description — за ним Claude вирішує, коли підтягнути скіл автоматично. allowed-tools — інструменти, які не питатимуть підтвердження під час роботи скіла. Додаткові файли — reference.md, examples/, scripts/ — завантажуються тільки коли скіл активний, тому reference-матеріал не з'їдає токени у звичайних сесіях. Три рівні зберігання: ~/.claude/skills — особисті для всіх ваших проєктів, .claude/skills у репо — команді через git, плагіни — через неймспейс plugin:skill.
 -->
 
 ---
@@ -1484,86 +1692,79 @@ claude /deploy-check    # Використання
 ```markdown
 ---
 name: review
-description: Детальний код-рев'ю поточних змін
+description: Детальний код-рев'ю поточних змін.
+  Використовуй на запити "зроби рев'ю", "перевір diff", перед PR.
 context: fork
-allowed-tools: Bash Read Grep Glob
+agent: general-purpose
+allowed-tools: Bash(git diff*) Bash(git log*) Read Grep
 ---
 
 ## Інструкції для код-рев'ю
 
-Проаналізуй зміни в `git diff` та перевір:
+Проаналізуй `git diff` проти main. Перевір:
 
-### Безпека
-- SQL injection, XSS, command injection
-- Хардкодовані секрети та credentials
-- Небезпечні десеріалізації
+**Безпека** — SQL injection, XSS, command injection, захардкоджені credentials
 
-### Якість
-- Чи покриті зміни тестами?
-- Чи немає дублювання коду?
-- Чи зрозумілі назви змінних та функцій?
+**Якість** — покриття тестами, дублювання, зрозумілі назви
 
-### Продуктивність
-- N+1 запити до БД
-- Відсутні індекси
-- Великі об'єкти в пам'яті
+**Продуктивність** — N+1 запити, відсутні індекси, великі об'єкти в пам'яті
 
-Результат: список знайдених проблем з severity (critical/warning/info)
-та рекомендаціями по виправленню.
+Результат: список проблем із severity `critical` / `warning` / `info`
+і рекомендацією по виправленню.
 ```
 
-<DocRef url="https://code.claude.com/docs/en/skills" label="code.claude.com/docs/en/skills" />
+<DocRef url="https://code.claude.com/docs/en/skills#run-skills-in-a-subagent" label="code.claude.com/docs/en/skills" />
 
 <!--
-Ось практичний приклад — скіл для код-рев'ю. context: fork означає що він працює в ізольованому контексті і не забруднює основну розмову.
+Практичний приклад. Ключове: context: fork — скіл запускається у форкнутому субагенті з ізольованим контекстом. Основна розмова не забруднюється великим рев'ю-аутпутом, повертається тільки підсумок. agent: general-purpose задає тип субагента (можна Explore, Plan, або кастомний з .claude/agents/). allowed-tools — read-only git і пошук, без Write чи Edit. description з тригер-фразами підвищує ймовірність auto-invocation: Claude побачить "зроби рев'ю" і підтягне скіл сам.
 -->
 
 ---
 hideInToc: true
 ---
 
-# `skills.sh` — магазин готових скілів
+# `skills.sh` — екосистема готових скілів
 
-<v-clicks>
+<div class="grid grid-cols-2 gap-6 text-sm">
+<div>
 
-### Відкритий ecosystem від Vercel Labs
+### Open Agent Skills standard
 
 ```bash
-# Встановити будь-який скіл з реєстру
-npx skills add vercel-labs/agent-skills
-npx skills add vercel-labs/next-best-practices   # Next.js best practices від Vercel
-npx skills add anthropics/skills                 # офіційний пакет від Anthropic
+npx skills add anthropics/skills           # офіційні від Anthropic
+npx skills add vercel-labs/next-best-practices
 ```
 
-- Працює з **Claude Code, Codex, Cursor, Gemini CLI, Copilot, Windsurf** (41+ агентів)
-- Єдиний формат — [Agent Skills standard](https://agentskills.io)
+- Формат [agentskills.io](https://agentskills.io) — єдиний
+- Працює з **Claude Code, Codex, Cursor, Gemini CLI, Copilot, Windsurf** та ін.
 - Переносите скіли між інструментами **без змін**
 
-### Реальні реєстри
+</div>
+<div>
+
+### Де шукати
 
 | Реєстр | Що там |
 |---|---|
-| [skills.sh](https://skills.sh) | Ledger + leaderboard від Vercel Labs |
-| [SkillsMP](https://skillsmp.com) | **800K+** скілів, фільтр по ролям |
-| [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | **1000+** community-skills |
 | [anthropics/skills](https://github.com/anthropics/skills) | Офіційні від Anthropic |
+| [skills.sh](https://skills.sh) | Ledger від Vercel Labs |
+| [awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills) | Community-каталог |
 
-</v-clicks>
+</div>
+</div>
 
 <v-click>
 
-### Приклад: Next.js Skills від Vercel
+### Приклад — Next.js Skills від Vercel
 
-- `next-best-practices` — автоматично активується, коли Claude торкається Next.js коду
-- **19 тем**: Server Components, caching, metadata, middleware, routing…
-- Підвищує pass rate на [nextjs.org/evals](https://nextjs.org/evals)
+`next-best-practices` автоматично вмикається на Next.js-коді: Server Components, caching, metadata, middleware, routing. Виміряно підвищення pass rate на [nextjs.org/evals](https://nextjs.org/evals).
 
 </v-click>
 
 <DocRef url="https://vercel.com/changelog/introducing-skills-the-open-agent-skills-ecosystem" label="vercel.com — skills ecosystem" />
 
 <!--
-Скіли ростуть в окрему екосистему. Vercel Labs зробили skills.sh — як npm, але для AI-скілів. Встановлюєш через npx skills add, і скіл лягає в потрібне місце для твого агента. Підтримує 41+ інструмент — переходиш з Claude Code на Cursor, скіли їдуть з тобою. Це важливо для компаній, що хочуть не зав'язуватися на вендора. Реєстрів кілька: skills.sh — лідерборд, SkillsMP — 800 тисяч скілів з фільтром по ролям, awesome-agent-skills — 1000+ community, офіційний anthropics/skills. Особливий приклад — Next.js Skills від Vercel. Вони зробили не просто документацію, а скіл, що автоматично підключається, коли Claude пише Next.js код. 19 тем: Server Components, кешування, метадані. І реально підвищує якість — виміряно на їхніх evals.
+Скіли переросли Claude Code і стали крос-тул-форматом. Vercel Labs пушать skills.sh — ledger + leaderboard. Спільнота підхопила — awesome-agent-skills агрегує community-скіли. Anthropics/skills — офіційний пакет, на який можна дивитись як на референс. Встановлення одна команда: npx skills add <org>/<pack>, і скіл лягає в потрібне місце для вашого агента. Головний бенефіт — vendor-neutral: переходите з Claude Code на Cursor, скіли їдуть з вами. Next-best-practices від Vercel — хороший приклад продуктового скіла: не просто інструкція, а контекст який автоматично підтягується і реально покращує якість Next.js коду, виміряно на evals.
 -->
 
 ---
@@ -1720,7 +1921,6 @@ hideInToc: true
 
 ### 🌍 Від спільноти
 
-- **superpowers** — TDD, debugging, brainstorming, subagent-dev (must-have!)
 - **visual-explainer** — інтерактивні HTML-артефакти (plan, diagrams, recap)
 - **claude-hud / ccstatusline** — statusline з метриками
 - **revdiff** — інтерактивне code review в терміналі (TUI overlay)
@@ -1744,55 +1944,7 @@ hideInToc: true
 </v-click>
 
 <!--
-Екосистема плагінів ділиться на офіційні від Anthropic та спільнотні. Superpowers — це must-have від Jesse Vincent, дає структуровані workflow для TDD, дебагу, планування. Session-report показує скільки токенів витратили і на що. Skill-creator допомагає створювати власні скіли з евалюаціями.
--->
-
----
-hideInToc: true
----
-
-# Superpowers — senior-рівень у плагіні
-
-<v-clicks>
-
-### Цілий workflow у 20+ скілах
-
-```mermaid {scale: 0.7}
-graph LR
-    B[brainstorming] --> P[writing-plans]
-    P --> W[using-git-worktrees]
-    W --> T[test-driven-development]
-    T --> S[subagent-driven-development]
-    S --> D[systematic-debugging]
-    D --> R[requesting-code-review]
-    R --> F[finishing-a-development-branch]
-    style B fill:#8B5CF6,color:#fff
-    style T fill:#10B981,color:#fff
-    style R fill:#F59E0B,color:#fff
-```
-
-- **brainstorming** — до будь-якої нової фічі, дослідити intent/requirements
-- **writing-plans** / **executing-plans** — структурований план + виконання з checkpoints
-- **test-driven-development** — пишемо тест → fail → код → pass
-- **systematic-debugging** — не gadaющe, а за системою: verify → isolate → hypothesize
-- **subagent-driven-development** — паралельні независимі таски через субагентів
-- **dispatching-parallel-agents** — оркеструвати 2+ worker-агентів
-- **verification-before-completion** — "готово" тільки з evidence, не словами
-
-</v-clicks>
-
-<v-click>
-
-```bash
-/plugin install superpowers@claude-plugins-official   # від Jesse Vincent
-```
-
-</v-click>
-
-<DocRef url="https://github.com/obra/superpowers" label="github.com/obra/superpowers" />
-
-<!--
-Superpowers — найвпливовіший community-плагін. Jesse Vincent (ex-Anthropic) зробив те, чого не вистачало у дефолтному Claude: справжній senior-процес. Замість "покажи код" — brainstorming на вимогу, планування з checkpoints, TDD як стиль життя, систематичний debug замість гадань, subagent-driven development для паралельних задач, verification-before-completion. Коли встановлюєш цей плагін, Claude перестає бути просто autocomplete — стає staff-engineer-ом, що слідує процесу. У мене встановлений — і я вмикаю brainstorming для кожної нової фічі.
+Екосистема плагінів ділиться на офіційні від Anthropic та спільнотні. Session-report показує скільки токенів витратили і на що. Skill-creator допомагає створювати власні скіли з евалюаціями. Про superpowers — наступного разу, це окрема велика тема.
 -->
 
 ---
@@ -2540,55 +2692,6 @@ layout: section
 # Просунуті можливості
 
 ---
-
-# `/effort` — Рівень адаптивного reasoning
-
-<v-clicks>
-
-| Рівень | Коли вмикати |
-|---|---|
-| `low` | Короткі, латенсі-чутливі задачі, без складних рішень |
-| `medium` | Баланс ціни та якості для cost-sensitive роботи |
-| `high` | Мінімум для intelligence-sensitive задач |
-| `xhigh` | **Default на Opus 4.7** — найкраще для кодингу / агентики |
-| `max` | Максимум reasoning — тільки поточна сесія, ризик overthinking |
-
-### Підтримка моделями
-
-- **Opus 4.7** — `low / medium / high / xhigh / max` (default: `xhigh`)
-- **Opus 4.6, Sonnet 4.6** — `low / medium / high / max` (default: `high`, або `medium` на Pro/Max)
-
-### Як встановити
-
-```bash
-/effort             # відкриває слайдер
-/effort xhigh       # виставити напряму
-/effort auto        # скинути до default моделі
-
-claude --effort high                            # на одну сесію
-export CLAUDE_CODE_EFFORT_LEVEL=high            # env (виграє над settings)
-```
-
-```json
-// settings.json
-{ "effortLevel": "high" }
-```
-
-</v-clicks>
-
-<v-click>
-
-> Для разового "подумай глибше" — додайте слово **ultrathink** у промпт, ефорт не змінюючи.
-
-</v-click>
-
-<DocRef url="https://code.claude.com/docs/en/model-config#adjust-effort-level" label="code.claude.com/docs/en/model-config#adjust-effort-level" />
-
-<!--
-/effort керує адаптивним reasoning — модель сама вирішує, скільки думати на кожному кроці. П'ять рівнів: low, medium, high, xhigh, max. На Opus 4.7 доступні всі п'ять, дефолт — xhigh. На Opus 4.6 та Sonnet 4.6 — чотири рівні без xhigh, дефолт high (або medium на Pro/Max). max — без обмежень по токенам, тільки поточна сесія, легко в overthinking. Виставляти можна через /effort інтерактивно, слайдером у /model, прапором --effort, env-змінною CLAUDE_CODE_EFFORT_LEVEL, полем effortLevel у settings.json, або полем effort у frontmatter скіла чи субагента. Пріоритет: env > session > model default. Лайфхак: якщо хочете разово поглибити міркування — напишіть "ultrathink" у промпт. Воно додасть in-context інструкцію, але не змінить виставлений рівень.
--->
-
----
 hideInToc: true
 ---
 
@@ -2635,47 +2738,6 @@ Co-Authored-By: Claude ...
 -->
 
 
-
----
-hideInToc: true
----
-
-# Model opusplan — Opus планує, Sonnet виконує
-
-<v-clicks>
-
-### Ідея:
-**Opus 4.6** — найрозумніший, але повільніший і дорожчий. **Sonnet 4.6** — швидкий і дешевий. А якщо поєднати?
-
-```bash
-claude --model opusplan
-# або в сесії:
-/model opusplan
-```
-
-### Як працює:
-
-```mermaid {scale: 0.65}
-graph LR
-    T[Твій запит] --> O[Opus 4.6<br/>🧠 Планує та рев'юїть]
-    O --> S[Sonnet 4.6<br/>⚡ Виконує код]
-    S --> O
-    O --> R[Результат]
-    style O fill:#8B5CF6,color:#fff
-    style S fill:#10B981,color:#fff
-    style T fill:#F59E0B,color:#fff
-    style R fill:#3B82F6,color:#fff
-```
-
-> **Найкраще з двох світів:** якість планування Opus + швидкість виконання Sonnet
-
-</v-clicks>
-
-<DocRef url="https://code.claude.com/docs/en/model-configuration" label="code.claude.com/docs/en/model-configuration" />
-
-<!--
-opusplan — це гібридний режим. Opus робить те, що він робить найкраще — думає, планує, рев'юїть. А Sonnet швидко виконує код за цим планом. Ти отримуєш якість Opus за ціною ближчу до Sonnet. Для великих задач — ідеальний варіант.
--->
 
 ---
 hideInToc: true
@@ -2836,6 +2898,67 @@ Esc Esc      # Rewind/summarize
 
 <!--
 Anthropic має безкоштовний курс Claude Code in Action — рекомендую пройти після цієї презентації, там глибше розбирають workflow. На anthropic.com/learn — хаб усіх навчальних матеріалів. DeepLearning.AI тримає короткі безкоштовні курси від Andrew Ng — там є окремі модулі по MCP та агентному AI.
+-->
+
+---
+layout: section
+---
+
+# Про що поговоримо наступного разу
+
+---
+hideInToc: true
+---
+
+# Наступного разу
+
+<div class="grid grid-cols-2 gap-6 mt-6">
+<div>
+
+<v-clicks>
+
+### 🦸 Superpowers — senior-процес у плагіні
+
+- **brainstorming** — обовʼязкове перед кожною фічею
+- **writing-plans / executing-plans** — структурований план + checkpoints
+- **test-driven-development** — tест → fail → код → pass
+- **systematic-debugging** — verify → isolate → hypothesize
+- **subagent-driven-development** — паралельні незалежні таски
+- **verification-before-completion** — "готово" лише з evidence
+
+</v-clicks>
+
+</div>
+<div>
+
+<v-clicks>
+
+### 🦣 Caveman — ультра-стиснутий режим
+
+- −75% токенів на діалозі, без втрати технічного сенсу
+- Рівні: `lite` / `full` / `ultra` + wenyan-варіанти
+- Code, commits, security — пишуться як є
+- `/caveman:compress` — стиснення CLAUDE.md і memory-файлів
+- `/caveman-commit`, `/caveman-review` — стислі commit-и та PR review
+
+</v-clicks>
+
+</div>
+</div>
+
+<v-click>
+
+<div class="mt-8 text-center text-lg opacity-80">
+Плюс: власні skills, hooks-рецепти, MCP-сервери продакшн-рівня, subagent-оркестрація.
+</div>
+
+</v-click>
+
+<DocRef url="https://github.com/obra/superpowers" label="github.com/obra/superpowers" />
+<DocRef url="https://github.com/jwalsh/caveman" label="github.com/jwalsh/caveman" :offset="1" />
+
+<!--
+Superpowers заслуговує окремої лекції — це не просто "ще один плагін", а цілий senior-процес у 20+ скілах: brainstorming перед кожною фічею, структуровані плани з checkpoints, TDD як стиль життя, систематичний debug замість гадань, subagent-driven development для паралельних задач. Jesse Vincent (ex-Anthropic) зробив те, чого не вистачало дефолтному Claude — дисципліну. Caveman — інший підхід: економія токенів ×75% за рахунок стислої мови без втрати технічної точності. Є режими під різну інтенсивність, є окремі команди для commit-ів, review, стиснення memory-файлів. Обидва плагіни разом — це вже не "помічник", а інженерний партнер з власним процесом. Поговоримо детально наступного разу — з практикою, прикладами реальних workflow, міряннями економії.
 -->
 
 ---

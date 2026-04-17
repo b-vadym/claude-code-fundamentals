@@ -2510,12 +2510,6 @@ RTK працює через PreToolUse hook — повністю прозоро.
 -->
 
 ---
-layout: section
----
-
-# Просунуті можливості
-
----
 hideInToc: true
 ---
 

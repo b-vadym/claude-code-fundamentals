@@ -65,23 +65,25 @@ hideInToc: true
 
 - **Cognizant** — 350 000 співробітників отримали Claude
 - **Accenture** — 30 000 навчених
-- **NYSE** — переписали engineering-процес на Claude Code + Agent SDK
+- **NYSE** — переписують engineering-процес на Claude Code + Agent SDK
 - **Epic** (MyChart) — >50% використання Claude Code припадає на не-розробників
 - **Altana** — швидкість розробки **×2–10**
 - **Behavox** (compliance) — сотні девелоперів, default pair-programmer
 
 ### Масштаб ринку
 
-- **Fortune 100**: ~70% equipment rate, adoption серед розробників **41–68%**
-- **1 000+ клієнтів** платять Anthropic **>$1M/рік**
-- Claude Code: **$1B ARR** за 6 міс, **$2.5B ARR** на лютий 2026 (×2 з січня)
+- **Fortune 100**: ~70% користуються Claude, розробники — **41–68%**
+- Claude Code: **$0 → $2.5B ARR** за 9 місяців (лютий 2026)
+- Anthropic: **$14B ARR** — з $1B за 14 місяців
 
 </v-clicks>
 
-<DocRef url="https://www.anthropic.com/news/claude-code-on-team-and-enterprise" label="anthropic.com/news/claude-code-on-team-and-enterprise" />
+<DocRef url="https://www.anthropic.com/news/cognizant-partnership" label="anthropic.com — Cognizant partnership" :offset="2" />
+<DocRef url="https://www.americanbanker.com/news/how-the-new-york-stock-exchange-deploys-anthropics-claude" label="americanbanker.com — NYSE deploys Claude" :offset="1" />
+<DocRef url="https://www.anthropic.com/news/claude-code-on-team-and-enterprise" label="anthropic.com — Claude Code on Team & Enterprise" />
 
 <!--
-Коли менеджмент питає "чому не Copilot", ось аргументи цифрами. Cognizant та Accenture розгорнули на сотнях тисяч. NYSE — не просто користувач, а будує на Claude Agent SDK внутрішні агенти. Epic показує, що Claude Code виходить за межі розробників. Altana документує конкретний приріст 2-10x. Behavox (compliance, security-sensitive) не побоялися. По ринку: Fortune 100 покривається на 70%, з розробників — 41-68% користуються. Понад тисяча enterprise-клієнтів з чеком понад мільйон. Claude Code досяг мільярда ARR за півроку, за лютий — два з половиною, подвоївся за місяць.
+Коли менеджмент питає "чому не Copilot", ось аргументи цифрами. Cognizant та Accenture розгорнули на сотнях тисяч. NYSE — не просто користувач, CTO Sridhar Masam каже: "ми переписуємо наш engineering-процес" на Claude Code + Agent SDK, агенти ведуть задачу від Jira-тікету до коміту. Epic показує, що Claude Code виходить за межі розробників — більше половини використання в Epic припадає на не-розробників. Altana документує конкретний приріст 2-10x. Behavox (compliance, security-sensitive) не побоялися. По ринку: Fortune 100 покривається на 70%, з розробників — 41-68% користуються. Claude Code з нуля до 2.5 мільярдів ARR за дев'ять місяців — найшвидший розріст enterprise-продукту в історії. Anthropic загалом — з 1 до 14 мільярдів ARR за 14 місяців.
 -->
 
 ---

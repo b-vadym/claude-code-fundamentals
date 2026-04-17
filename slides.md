@@ -1768,48 +1768,6 @@ npx skills add vercel-labs/next-best-practices
 -->
 
 ---
-layout: section
----
-
-# Плагіни
-
----
-
-# Плагін-система
-
-<v-clicks>
-
-Плагіни розширюють Claude Code **скілами, агентами, hooks, MCP серверами та LSP**.
-
-### Установка:
-```bash
-/plugin install github@claude-plugins-official
-/plugin marketplace list
-/plugin marketplace add owner/repo
-```
-
-### Категорії:
-- **Code Intelligence** — LSP для мов (Rust, Python, TS, Go, Java...)
-- **Integrations** — MCP сервери (GitHub, Figma, Slack...)
-- **Workflows** — спеціалізовані агенти
-- **Output Styles** — формати відповідей
-
-### Управління:
-```bash
-/plugin list                    # Список встановлених
-/plugin disable plugin-name     # Вимкнути
-/reload-plugins                 # Перезавантажити
-```
-
-</v-clicks>
-
-<DocRef url="https://code.claude.com/docs/en/plugins" label="code.claude.com/docs/en/plugins" />
-
-<!--
-Плагіни — це пакети, що можуть містити скіли, агентів, hooks та MCP сервери. Маркетплейс постійно росте.
--->
-
----
 hideInToc: true
 ---
 
@@ -2145,6 +2103,48 @@ npx ccstatusline@latest
 
 <!--
 Два підходи до statusline. ccstatusline — максимальна кастомізація через TUI, 40+ віджетів, Powerline стиль. Claude HUD — фокус на контексті сесії: скільки контексту залишилось, що зараз робить агент. Обирайте що більше підходить вашому workflow.
+-->
+
+---
+layout: section
+---
+
+# Плагіни
+
+---
+
+# Плагін-система
+
+<v-clicks>
+
+Плагіни розширюють Claude Code **скілами, агентами, hooks, MCP серверами та LSP**.
+
+### Установка:
+```bash
+/plugin install github@claude-plugins-official
+/plugin marketplace list
+/plugin marketplace add owner/repo
+```
+
+### Категорії:
+- **Code Intelligence** — LSP для мов (Rust, Python, TS, Go, Java...)
+- **Integrations** — MCP сервери (GitHub, Figma, Slack...)
+- **Workflows** — спеціалізовані агенти
+- **Output Styles** — формати відповідей
+
+### Управління:
+```bash
+/plugin list                    # Список встановлених
+/plugin disable plugin-name     # Вимкнути
+/reload-plugins                 # Перезавантажити
+```
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/plugins" label="code.claude.com/docs/en/plugins" />
+
+<!--
+Плагіни — це пакети, що можуть містити скіли, агентів, hooks та MCP сервери. Маркетплейс постійно росте.
 -->
 
 ---

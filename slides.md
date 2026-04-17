@@ -199,7 +199,7 @@ hideInToc: true
 - **Bedrock / Vertex / Foundry** — self-hosted inference
 - **Sandboxing** — ізоляція на рівні OS
 - **Prompt caching** — прогнозовані витрати
-- 53% загального adoption — **лідер overall** (Copilot — 82% headcount, але Claude — #1 в deployments)
+- **53% overall adoption** vs Copilot 82% серед великих enterprise — Claude лідер на новій хвилі
 
 </div>
 
@@ -215,6 +215,8 @@ hideInToc: true
 
 </v-click>
 
+<DocRef url="https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7" label="platform.claude.com — What's new in Claude Opus 4.7" :offset="2" />
+<DocRef url="https://www.anthropic.com/engineering/claude-code-sandboxing" label="anthropic.com — Claude Code sandboxing" :offset="1" />
 <DocRef url="https://venturebeat.com/ai/github-leads-the-enterprise-claude-leads-the-pack-cursors-speed-cant-close" label="venturebeat.com — GitHub leads enterprise, Claude leads the pack" />
 
 <!--

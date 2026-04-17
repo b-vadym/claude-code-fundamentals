@@ -109,6 +109,8 @@ hideInToc: true
 
 </v-clicks>
 
+<DocRef url="https://amitkoth.com/claude-code-vs-amazon-q/" label="amitkoth.com — Claude Code vs Amazon Q" :offset="2" />
+<DocRef url="https://fortune.com/2026/03/09/microsoft-copilot-cowork-ai-agents-anthropic-e7-m365-saas/" label="fortune.com — Microsoft Copilot Cowork on Anthropic" :offset="1" />
 <DocRef url="https://leaddev.com/ai/why-microsoft-engineers-are-using-claude-code" label="leaddev.com — Why Microsoft engineers use Claude Code" />
 
 <!--

@@ -536,6 +536,43 @@ hideInToc: true
 hideInToc: true
 ---
 
+# `/recap` — тиха ін'єкція, яку варто знати
+
+<v-clicks>
+
+Додано у Claude Code **v2.1.108** (квітень 2026). Дві іпостасі:
+
+- **Ручний `/recap`** — one-line summary поточної сесії on-demand
+- **Auto-recap** — спрацьовує **автоматично** при поверненні в сесію після простою ("after you've been away")
+
+Кожен recap = **окремий model call** → реальні токени.
+
+**Відомі проблеми** (anthropics/claude-code issues):
+- **#51887** — cross-session content leak (Opus 4.7, v2.1.117) — recap показував чужий контекст
+- **#48642** — auto-injected `※ recap:` рядки з'являються без opt-in
+- **#49803** — `/recap` виводить попередній контекст **після** `/clear + /resume + /btw`
+- **#49336** — recap ігнорує мову розмови (англ замість укр)
+
+**Вимкнути повністю**:
+```json
+{ "env": { "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "0" } }
+```
+
+Override-ить `/config` toggle (`awaySummaryEnabled`). Важливо: default — **ON** для користувачів з вимкнутою telemetry (Bedrock, Vertex, Foundry, `DISABLE_TELEMETRY`).
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/env-vars" label="code.claude.com/docs — env vars" :offset="1" />
+<DocRef url="https://github.com/anthropics/claude-code/issues/51887" label="github — recap leak #51887" />
+
+<!--
+Recap — нова фіча, додана у 2.1.108. Ідея добра: повертаєшся до сесії — бачиш summary де зупинився. Проблеми два типи. По-перше — це додатковий model call, якого ти не замовляв, і якому немає альтернативи через /config на telemetry-off deployments (Bedrock, Vertex, Foundry). По-друге — реальні баги: 51887 показав що recap може витекти контекст з іншої сесії (security issue). 48642 — auto-injected ※ recap: рядки з'являються посеред розмови без opt-in. 49803 — після /clear + /resume + /btw recap все одно витягує старий контекст. 49336 — recap ігнорує мову (пише англійською коли розмова українська). Рекомендую вимкнути: CLAUDE_CODE_ENABLE_AWAY_SUMMARY=0. Override-ить /config toggle. Якщо повертатимешся до старої сесії — просто попроси Claude сам зробити recap, контроль у тебе.
+-->
+
+---
+hideInToc: true
+---
+
 # Subagents: ізоляція verbose operations
 
 <v-clicks>

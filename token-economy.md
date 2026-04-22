@@ -31,6 +31,7 @@ transition: fade-out
 
 <v-clicks>
 
+- **Setup** — скріншоти у Claude Code + tmux для revdiff
 - **Де ідуть токени** — анатомія сесії, startup 20%, діагностика
 - **Контекст — головний бюджет** — CLAUDE.md, skills, `/clear`/`/compact`/`/rewind`, subagents
 - **Prompt caching** — головний монетний важіль (92% економії)
@@ -42,6 +43,108 @@ transition: fade-out
 
 <!--
 Шість секцій. Перші дві — як НЕ спалювати токени надаремно. Третя — як платити 10x менше за ті самі токени. Четверта — як вибрати модель під задачу. П'ята — як обрізати вхід у context до того, як він туди потрапить. Шоста — checklist для самоперевірки.
+-->
+
+---
+layout: section
+---
+
+# Спершу — setup
+
+---
+hideInToc: true
+---
+
+# Вставка скріншотів у Claude Code (Ubuntu)
+
+<div class="grid grid-cols-2 gap-6 text-sm">
+<div>
+
+### Clipboard-утиліта
+
+```bash
+# визначити сесію
+echo $XDG_SESSION_TYPE
+
+# Wayland
+sudo apt install wl-clipboard
+
+# X11
+sudo apt install xclip
+```
+
+Перевірка — скріншот у буфер (Flameshot: виділити → `Ctrl+C`):
+
+```bash
+wl-paste --list-types    # має містити image/png
+# або
+xclip -selection clipboard -t TARGETS -o
+```
+
+</div>
+<div>
+
+### `~/.tmux.conf`
+
+```bash
+set -g allow-passthrough on
+set -g set-clipboard on
+```
+
+Перезавантажити: `tmux source ~/.tmux.conf`
+
+**Чому**:
+- `allow-passthrough` — ескейп-послідовності OSC clipboard проходять через tmux
+- `set-clipboard` — синхронізація tmux-буферу з системним
+
+Без них бінарні дані скріншотів рвуться у tmux.
+
+**Fallback**: drag-and-drop файлу у термінал або `@шлях/до/file.png`.
+
+</div>
+</div>
+
+<DocRef url="https://man.openbsd.org/OpenBSD-current/man1/tmux.1#allow-passthrough" label="tmux — allow-passthrough" />
+
+<!--
+Якщо працюєш у tmux на Ubuntu — Ctrl+V часто рве скріншоти. Причина: tmux за замовчуванням не пропускає OSC-послідовності clipboard. Два рядки у tmux.conf вирішують. На Wayland — wl-clipboard, на X11 — xclip. Перевірка що clipboard містить image/png — wl-paste --list-types або xclip -t TARGETS. Якщо там тільки text/plain — проблема у screenshot-тулі, не в terminal. Flameshot кладе image/png після Ctrl+C у виділенні. Fallback — якщо clipboard не заведеться: drag-and-drop файлу у вікно термінала (шлях вставляється), або @path/to/file.png — Claude Code читає файл напряму з автокомплітом.
+-->
+
+---
+hideInToc: true
+---
+
+# Tmux для revdiff і TUI-агентів
+
+```bash
+# truecolor — syntax highlight у diff
+set -g default-terminal "tmux-256color"
+set -ga terminal-overrides ",*256col*:Tc"
+
+# mouse scroll у diff viewport
+set -g mouse on
+
+# Esc / n / N не залипають у Vim-style navigation
+set -sg escape-time 10
+
+# для скріншотів (з попереднього слайду)
+set -g allow-passthrough on
+set -g set-clipboard on
+```
+
+<v-clicks>
+
+- **tmux ≥ 3.2** для `display-popup` (revdiff запускає popup всередині сесії). Ubuntu 22.04+ OK, 20.04 — треба PPA.
+- revdiff auto-detect через `$TMUX` — жодних додаткових env не треба.
+- `COLORTERM=truecolor` у зовнішньому терміналі (Ghostty/Alacritty/Kitty) — 24-bit пробрасується в tmux через `terminal-overrides`.
+- Цей самий конфіг підходить для Codex, OpenCode, Zellij-aware TUI.
+
+</v-clicks>
+
+<DocRef url="https://github.com/umputun/revdiff" label="github.com/umputun/revdiff" />
+
+<!--
+Якщо плануєш юзати revdiff для in-terminal code review — tmux має бути 3.2+ (для display-popup). На Ubuntu 22.04 з коробки 3.2a, 24.04 — 3.4. На 20.04 — стара 3.0a, треба оновити з PPA або зібрати з source. Три ключові налаштування для якісного UX: truecolor (синтаксис-highlight у diff), mouse (скрол у viewport), escape-time 10 (інакше Vim-style n/N навігація залипає). revdiff сам детектить tmux через $TMUX, нічого додатково не треба. COLORTERM=truecolor — експортити у зовнішньому терміналі (Ghostty у моєму випадку), тоді кольори пробросяться у tmux через terminal-overrides. Цей же конфіг працює для інших TUI-агентів: Codex, OpenCode, Zellij.
 -->
 
 ---
@@ -852,6 +955,86 @@ Top by savings:
 
 <!--
 RTK — open-source проект rtk-ai на GitHub. Це мої власні цифри: 4753 команд, 22 мільйони токенів заощаджено — 92.5%. Топ-1 — rtk read, файлові читання. Коли Claude читає файл через свій Read tool — у контекст іде повний вміст. RTK grep/truncate-ує великі файли до релевантних секцій. rtk curl — http-запити, де тільки заголовки + перші N рядків тіла потрібні. Після install через rtk init -g — нічого не треба робити, hook прозоро переписує всі bash-команди. Нюанс: економія — це НЕ токени Claude-моделі напряму, а shell-output, який був би завантажений у context. Реальна економія в доларах залежить від того, на якій моделі ти працюєш.
+-->
+
+---
+hideInToc: true
+---
+
+# `settings.json` env — preset для економії
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+    "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS": "1",
+    "CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS": "8000",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "8192",
+    "MAX_THINKING_TOKENS": "8000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70"
+  }
+}
+```
+
+<v-clicks>
+
+- `DISABLE_AUTO_MEMORY` — не читати/писати `MEMORY.md` (trade-off: cross-session learning off)
+- `DISABLE_BACKGROUND_TASKS` — вимикає `run_in_background`, Ctrl+B, auto-backgrounding (**<$0.04/session → 0**)
+- `FILE_READ_MAX_OUTPUT_TOKENS=8000` — truncate великих файлів раніше (default щедріший)
+- `MAX_OUTPUT_TOKENS=8192` — cap per-turn output. **Менший value = більший auto-compact buffer** (docs)
+- `MAX_THINKING_TOKENS=8000` — cap thinking замість повного `DISABLE_THINKING=1` (не вбиває якість на складних задачах)
+- `AUTOCOMPACT_PCT_OVERRIDE=70` — компакція при 70% замість ~95%
+
+</v-clicks>
+
+**Обережно з цими** (в інтернеті часто радять, але коштує якості):
+- `CLAUDE_CODE_DISABLE_THINKING=1` — занадто жорстко на Opus 4.7 (xhigh default)
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — вмикає feature що = **7× tokens**
+- `LOG_LEVEL=warn`, `NODE_ENV=production` — **не існують у Claude Code env**
+
+<DocRef url="https://code.claude.com/docs/en/env-vars" label="code.claude.com/docs — Environment variables" />
+
+<!--
+Балансований preset. Auto memory і background tasks — низький risk, чистий виграш. FILE_READ_MAX_OUTPUT_TOKENS — 25k default (занадто щедро для аудиту), 8k вистачає на 99% файлів, великі truncate-нуться і Claude все одно побачить попередження. MAX_OUTPUT_TOKENS — цікавий нюанс з docs: менший cap означає більше місця для auto-compact buffer, тобто auto-compaction спрацює пізніше. MAX_THINKING_TOKENS=8000 замість DISABLE_THINKING — компроміс: thinking обмежений, але не вбитий. CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70 — агресивна компакція на 70% (default ~95, hard cap ~83). Червоний список: DISABLE_THINKING = якість впаде на архітектурних задачах. EXPERIMENTAL_AGENT_TEAMS = просто прапор що вмикає feature яка з'їдає 7x токенів. LOG_LEVEL і NODE_ENV — це популярні галюцинації з блогів/гайдів: Claude Code їх не знає, шум у конфігу. Правильна назва для debug логу — CLAUDE_CODE_DEBUG_LOG_LEVEL.
+-->
+
+---
+hideInToc: true
+---
+
+# Thinking budget — per-model nuance
+
+Три env vars для thinking, **поведінка відрізняється за моделлю**:
+
+| Var | Opus 4.7 | Opus 4.6 / Sonnet 4.6 |
+|-----|----------|----------------------|
+| `CLAUDE_CODE_DISABLE_THINKING=1` | ✅ kills all thinking | ✅ kills all thinking |
+| `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` | ❌ **no effect** | ✅ fallback на fixed budget |
+| `MAX_THINKING_TOKENS=8000` | ❌ **ignored** | ✅ fixed budget (коли adaptive off) |
+
+<v-clicks>
+
+**Opus 4.7** — завжди adaptive. Контроль — через `/effort low/medium/high/xhigh/max` (default `xhigh`). `MAX_THINKING_TOKENS` **ігнорується**.
+
+**Opus 4.6 / Sonnet 4.6** — default adaptive, можна opt-out:
+```json
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING": "1",
+    "MAX_THINKING_TOKENS": "8000"
+  }
+}
+```
+→ fixed thinking budget 8k замість adaptive.
+
+**Практичне правило**: на 4.7 не ставити `MAX_THINKING_TOKENS` — це шум. Замість — `/effort low` для простих tasks, default для складних.
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/model-config#adaptive-reasoning-and-fixed-thinking-budgets" label="code.claude.com/docs — Adaptive reasoning" />
+
+<!--
+Гадський нюанс, якого немає у більшості гайдів. На Opus 4.7 thinking завжди adaptive — модель сама вирішує скільки думати на кожному turn-і. MAX_THINKING_TOKENS на 4.7 буквально ігнорується — це не bug, це by design. Хочеш знизити thinking на 4.7 — /effort low, medium, high, xhigh, max. Default — xhigh (багато thinking на кожну дрібницю). /effort low — швидкі задачі. Якщо ти на Opus 4.6 або Sonnet 4.6 — там навпаки: default також adaptive, але можна вимкнути через CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1, і тоді активується старий fixed budget через MAX_THINKING_TOKENS. DISABLE_THINKING=1 — nuclear варіант для всіх моделей, thinking виключається взагалі. Min Claude Code version для DISABLE_ADAPTIVE_THINKING — 2.1.111.
 -->
 
 ---

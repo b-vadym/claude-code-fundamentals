@@ -870,6 +870,50 @@ Sonnet у 1.5-2× дешевший, виконує план якісно.
 -->
 
 ---
+hideInToc: true
+---
+
+# `opusplan` + pin 4.6: автоматизуй патерн
+
+Ручний `/model opus` → `/model sonnet` можна автоматизувати:
+
+```
+/model opusplan
+```
+
+<v-clicks>
+
+**Що робить** (офіційно): `opus` у Plan mode → автоматично `sonnet` у execution. Без ручного перемикання.
+
+**Але**: `opus` alias = Opus 4.7 default (xhigh effort + новіший tokenizer 1.0-1.35× tokens). Дорожчий think на кожну дрібницю.
+
+**Fix** — pin aliases на 4.6 у `settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-6"
+  },
+  "model": "opusplan"
+}
+```
+
+- `ANTHROPIC_DEFAULT_OPUS_MODEL` → модель для `opus` **і для `opusplan` коли Plan Mode active**
+- `ANTHROPIC_DEFAULT_SONNET_MODEL` → модель для `sonnet` **і для `opusplan` коли execute**
+- `"model": "opusplan"` → startup default, не потрібно команди
+
+**Перемкнути в сесії**: `/model opusplan`. Для одноразового запуску: `claude --model opusplan`.
+
+</v-clicks>
+
+<DocRef url="https://code.claude.com/docs/en/model-config#opusplan-model-setting" label="code.claude.com/docs — opusplan" />
+
+<!--
+Три кроки в одному слайді: (1) opusplan — офіційний alias, автоматизує patern з попереднього слайду. (2) Але default резолвиться на latest — Opus 4.7 + Sonnet 4.6. 4.7 це xhigh effort default + новий tokenizer який на 0-35% більше токенів дає на ту саму задачу. Якщо тобі не потрібна верхня планка reasoning — пін на 4.6 економить суттєво. (3) Два env vars + "model": "opusplan" у settings.json — готово, з першого старту Claude Code використовує opusplan з 4.6 моделями. Документація явно каже: ANTHROPIC_DEFAULT_OPUS_MODEL керує і opus alias-ом і opusplan Plan Mode phase. /model opusplan — перемкнути посеред сесії якщо ти на чомусь іншому стартанув. Nuance: opusplan Plan phase завжди 200k context, не 1M (навіть якщо у тебе Max/Team Premium).
+-->
+
+---
 layout: section
 ---
 
@@ -1209,26 +1253,6 @@ hideInToc: true
 <!--
 Коротше за цю доповідь — курс Isa Fulford і Andrew Ng, 9 уроків по 5-15 хвилин. Так, в назві ChatGPT — курс використовує OpenAI API в прикладах, але принципи promptingу universalні: специфічні інструкції, iterative refinement, chain-of-thought, structured output. Все працює один-в-один для Claude Code. Безкоштовно, не треба certificate, можна дивитись на швидкості 1.5x — разом 1 година. Після нашої доповіді — це найкоротший шлях щоб почати застосовувати checklist ефективно.
 -->
-
----
-layout: center
-class: text-center
----
-
-# Дякую
-
-**Посилання:**
-- [code.claude.com/docs/en/costs](https://code.claude.com/docs/en/costs)
-- [code.claude.com/docs/en/context-window](https://code.claude.com/docs/en/context-window)
-- [platform.claude.com/docs/en/build-with-claude/prompt-caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
-- [github.com/rtk-ai/rtk](https://github.com/rtk-ai/rtk)
-- [deeplearning.ai — Prompt Engineering for Developers](https://www.deeplearning.ai/short-courses/chatgpt-prompt-engineering-for-developers/)
-
-Перша частина: **Claude Code: Fundamentals** → `/claude-code-fundamentals/`
-
-<!--
-Коротко: три важелі — startup context, prompt caching, model selection. Перша частина презентації — Fundamentals — за посиланням. Питання?
--->
 ---
 layout: section
 ---
@@ -1362,3 +1386,23 @@ glab mr note "$CI_MERGE_REQUEST_IID" --message "$review"
 Docker image — простий. Node 22 Alpine, bash, git, curl, і npm install -g @anthropic-ai/claude-code. GitLab CLI glab потрібен щоб postить comment у MR з-під CI. Entrypoint script робить clean річ: викликає claude -p /review з diff між origin/target і HEAD, отримує text output, і glab mr note постить його як коментар. Build image — schedule job раз на день, автоматично підтягує нову версію claude-code. Один build — десятки consumer-проектів, усі мають one source of truth. Вартість: типовий MR на Sonnet ~$0.05-0.20. Один active dev — 10-20 reviews на день, це $2-4/день, $40-80/місяць. У Claude Max $100 плані — покривається. API pay-as-you-go — also ок. Ключова перевага: на відміну від auto-review на кожен push, тут ти контролюєш коли і скільки.
 -->
 
+
+---
+layout: center
+class: text-center
+---
+
+# Дякую
+
+**Посилання:**
+- [code.claude.com/docs/en/costs](https://code.claude.com/docs/en/costs)
+- [code.claude.com/docs/en/context-window](https://code.claude.com/docs/en/context-window)
+- [platform.claude.com/docs/en/build-with-claude/prompt-caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+- [github.com/rtk-ai/rtk](https://github.com/rtk-ai/rtk)
+- [deeplearning.ai — Prompt Engineering for Developers](https://www.deeplearning.ai/short-courses/chatgpt-prompt-engineering-for-developers/)
+
+Перша частина: **Claude Code: Fundamentals** → `/claude-code-fundamentals/`
+
+<!--
+Коротко: три важелі — startup context, prompt caching, model selection. Перша частина презентації — Fundamentals — за посиланням. Питання?
+-->

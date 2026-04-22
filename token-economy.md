@@ -1229,3 +1229,136 @@ class: text-center
 <!--
 Коротко: три важелі — startup context, prompt caching, model selection. Перша частина презентації — Fundamentals — за посиланням. Питання?
 -->
+---
+layout: section
+---
+
+# Claude Code у CI/CD
+
+---
+hideInToc: true
+---
+
+# Claude як MR reviewer — pattern
+
+<v-clicks>
+
+**Ідея:** Claude Code запускається у pipeline на MR-і і робить code review як коментар. Не на кожен push — **on-demand**.
+
+**Архітектура (моя prod-ова):**
+1. Dev пише `@claude_review <optional context>` у MR comment
+2. Webhook сервіс отримує GitLab webhook
+3. Шукає існуючий MR pipeline, знаходить job `claude-mr-review`
+4. Play-ить job (як кнопка "run") з env `CLAUDE_CONTEXT`, `DISCUSSION_ID`
+5. Docker image з `@anthropic-ai/claude-code` виконує `claude -p "/review origin/target...HEAD"`
+6. Вивід postitься у MR як comment (або thread reply)
+
+**Чому це token-economy-friendly:**
+- **On-demand, не auto** — review тільки коли попросив
+- **Sonnet 4.6 default** — 5× дешевше Opus
+- **`/review` scope** — diff, не whole repo
+- **Reuses MR pipeline** — нова інфра не створюється
+
+</v-clicks>
+
+<!--
+Це патерн, який ми у VisualCraft крутимо вже півроку. Основний insight: code review — це задача яку ти хочеш on-demand, не на кожен push. Auto-review кожного pushу коштував би шалених грошей і генерував би шум. Webhook-driven підхід дає тобі кнопку "claude review please" — ти натискаєш коли готовий. GitLab pipeline вже є на MR — ми не створюємо окремий CI run, а play-имо існуючий job. Docker image з claude-code CLI build-иться раз на день і sharить між усіма проектами компанії. Sonnet 4.6 як default — вистачає для review, дешевше Opus у 5 разів.
+-->
+
+---
+hideInToc: true
+---
+
+# `.gitlab-ci.yml` — шаблон у проект
+
+**Шаблон (окремий проект, reusable):**
+
+```yaml
+.claude-mr-review:
+  image: registry.example.com/mr-claude:latest
+  script:
+    - claude-mr-review
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      allow_failure: true
+  variables:
+    GIT_DEPTH: 0
+    GITLAB_TOKEN: $API_TOKEN
+    GITLAB_HOST: $CI_SERVER_HOST
+    CLAUDE_MODEL: claude-sonnet-4-6
+    CLAUDE_CONTEXT: ""
+    DISCUSSION_ID: ""
+```
+
+**Підключення у проекті (2 рядки):**
+
+```yaml
+include:
+  - project: "common/mr-webhook"
+    file: "/ci/.gitlab-ci.yml"
+
+claude-mr-review:
+  stage: review
+  extends: [.claude-mr-review]
+```
+
+<v-clicks>
+
+- Secrets у project CI/CD settings: `ANTHROPIC_API_KEY`, `API_TOKEN` (GitLab API scope)
+- `GIT_DEPTH: 0` — full clone, інакше `origin/target...HEAD` не вирішиться
+- `when: manual` — job не запускається сам, є кнопка у pipeline UI
+- Override `CLAUDE_MODEL` на рівні проекту якщо треба Opus/Haiku
+
+</v-clicks>
+
+<!--
+Практична частина. Два файли: (1) спільний ci-template у окремому проекті common/mr-webhook, звідки всі підключають; (2) сам проект додає 5 рядків include + extends. Reuse через GitLab include — template можна оновлювати централізовано без редагування кожного репо. GIT_DEPTH: 0 критичний — без нього git не матиме target-branch-у у shallow clone, і review fail-ить. Manual rule — ключ до економії: job існує у pipeline але запускається тільки коли натиснули кнопку або webhook зробив play. Override CLAUDE_MODEL на рівні проекту — для складних рефакторів можна переключити на Opus ad-hoc через CI/CD variable.
+-->
+
+---
+hideInToc: true
+---
+
+# Docker image: мінімальний setup
+
+```dockerfile
+FROM node:22-alpine
+
+RUN apk add --no-cache bash git curl ca-certificates && \
+    update-ca-certificates
+
+RUN npm install -g @anthropic-ai/claude-code
+
+# GitLab CLI для postить comment у MR
+RUN curl -sL \
+    "https://gitlab.com/gitlab-org/cli/-/releases/v1.89.0/downloads/glab_1.89.0_linux_amd64.tar.gz" \
+    | tar xz -C /usr/local/bin --strip-components=1 bin/glab
+
+COPY ./bin/claude-mr-review /usr/local/bin/claude-mr-review
+```
+
+<v-clicks>
+
+**Entrypoint `claude-mr-review` (bash):**
+```bash
+#!/bin/bash
+review=$(claude -p "/review origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD" \
+  --model "$CLAUDE_MODEL" \
+  --output-format text)
+
+glab mr note "$CI_MERGE_REQUEST_IID" --message "$review"
+```
+
+**Build cadence:** `schedule` job раз на день (оновлює `@anthropic-ai/claude-code` до нової версії). Images sharяться між усіма проектами — **один build, N consumers**.
+
+**Economy math:** типовий MR review на Sonnet 4.6 — ~$0.05-0.20 (залежно від diff size). Day з 20 reviews ≈ $2-4. Пусковий cost на CI — **предсказуваний, не unbounded**.
+
+</v-clicks>
+
+<DocRef url="https://docs.gitlab.com/ee/ci/yaml/includes.html" label="docs.gitlab.com — CI includes" />
+
+<!--
+Docker image — простий. Node 22 Alpine, bash, git, curl, і npm install -g @anthropic-ai/claude-code. GitLab CLI glab потрібен щоб postить comment у MR з-під CI. Entrypoint script робить clean річ: викликає claude -p /review з diff між origin/target і HEAD, отримує text output, і glab mr note постить його як коментар. Build image — schedule job раз на день, автоматично підтягує нову версію claude-code. Один build — десятки consumer-проектів, усі мають one source of truth. Вартість: типовий MR на Sonnet ~$0.05-0.20. Один active dev — 10-20 reviews на день, це $2-4/день, $40-80/місяць. У Claude Max $100 плані — покривається. API pay-as-you-go — also ок. Ключова перевага: на відміну від auto-review на кожен push, тут ти контролюєш коли і скільки.
+-->
+

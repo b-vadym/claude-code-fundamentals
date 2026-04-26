@@ -1,0 +1,42 @@
+{
+  "title": "Workshop 05 — Hooks: lifecycle deep dive",
+  "branch": "extending",
+  "duration_minutes": 90,
+  "slides_count": 35,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "jq встановлений (brew install jq / apt-get install jq)",
+    "Доступ до ~/.claude/settings.json і ~/.claude/hooks/",
+    "Базове розуміння bash і JSON"
+  ],
+  "learning_objectives": [
+    "Прочитати hook-конфіг у settings.json і пояснити кожне поле",
+    "Написати PreToolUse hook що блокує небезпечну команду",
+    "Написати PostToolUse hook для audit log у JSONL",
+    "Інжектити контекст у SessionStart (cwd, branch, recent commits)",
+    "Перехопити промпт юзера через UserPromptSubmit",
+    "Debug-нути hook що не firing — /hooks, debug log, manual test"
+  ],
+  "topics": [
+    "Lifecycle event catalogue (9 ключових з 25)",
+    "settings.json hooks schema (event → matcher → handler)",
+    "Matcher patterns (exact / |-list / regex)",
+    "Exit codes (0/2/інше) і JSON output",
+    "Hook locations і precedence",
+    "Security: hooks = arbitrary shell, trust boundary",
+    "Debug: /hooks, debug log, manual JSON pipe test"
+  ],
+  "deliverables": [
+    "slides.md (35 слайдів)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/hooks",
+    "https://code.claude.com/docs/en/hooks-guide",
+    "https://code.claude.com/docs/en/settings",
+    "https://github.com/anthropics/claude-code/blob/main/examples/hooks/bash_command_validator_example.py"
+  ]
+}

@@ -1,0 +1,47 @@
+# GitLab CI/CD job for Claude Code on AWS Bedrock via OIDC.
+# Adapted from https://code.claude.com/docs/en/gitlab-ci-cd#aws-bedrock-job-example-oidc
+#
+# Required CI/CD variables (NOT secrets — these are config):
+#   - AWS_ROLE_TO_ASSUME — full IAM role ARN
+#   - AWS_REGION         — Bedrock region (e.g. us-west-2)
+#
+# No ANTHROPIC_API_KEY needed.
+
+stages:
+  - ai
+
+claude-bedrock:
+  stage: ai
+  image: node:24-alpine3.21
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  before_script:
+    - apk add --no-cache bash curl jq git python3 py3-pip
+    - pip install --no-cache-dir awscli
+    - curl -fsSL https://claude.ai/install.sh | bash
+    - export PATH="$HOME/.local/bin:$PATH"
+    # Exchange GitLab OIDC token for AWS credentials
+    - export AWS_WEB_IDENTITY_TOKEN_FILE="${CI_JOB_JWT_FILE:-/tmp/oidc_token}"
+    - if [ -n "${CI_JOB_JWT_V2:-}" ]; then printf "%s" "$CI_JOB_JWT_V2" > "$AWS_WEB_IDENTITY_TOKEN_FILE"; fi
+    - >
+      aws sts assume-role-with-web-identity
+      --role-arn "$AWS_ROLE_TO_ASSUME"
+      --role-session-name "gitlab-claude-$(date +%s)"
+      --web-identity-token "file://$AWS_WEB_IDENTITY_TOKEN_FILE"
+      --duration-seconds 3600 > /tmp/aws_creds.json
+    - export AWS_ACCESS_KEY_ID="$(jq -r .Credentials.AccessKeyId /tmp/aws_creds.json)"
+    - export AWS_SECRET_ACCESS_KEY="$(jq -r .Credentials.SecretAccessKey /tmp/aws_creds.json)"
+    - export AWS_SESSION_TOKEN="$(jq -r .Credentials.SessionToken /tmp/aws_creds.json)"
+  script:
+    - export CLAUDE_CODE_USE_BEDROCK=1
+    - >
+      claude -p "${AI_FLOW_INPUT:-Review this MR for bugs and security issues}"
+      --bare
+      --permission-mode plan
+      --output-format json
+      --max-turns 3
+      --max-budget-usd 1.00
+      > review.json
+    - jq -r '.result' review.json
+  variables:
+    AWS_REGION: "us-west-2"

@@ -1,0 +1,418 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 08 --- Headless / CI/CD: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 08 --- Headless / CI/CD}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 08: Headless / CI/CD}\\[0.6em]
+  {\large Productionizing \texttt{claude -p} --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Не повторює слайди --- сухе зведення CLI-flag-ів, output форматів, permission-режимів, auth-precedence, CI templates і чек-листів. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/headless}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Headless mode: основа}
+
+\texttt{claude -p "<prompt>"} (long form \texttt{--print}) --- non-interactive mode, exit після відповіді. Раніше називалось ``headless''; тепер просто \texttt{-p}.
+
+\begin{lstlisting}
+claude -p "What does the auth module do?"
+claude -p "Summarize this project" --output-format json | jq -r '.result'
+claude -p "Fix tests" --max-turns 5 --allowedTools "Bash,Read,Edit"
+\end{lstlisting}
+
+\textbf{Що НЕ працює у \texttt{-p}:}
+\begin{itemize}[leftmargin=2em]
+\item Permission prompts --- нема UI; pre-approve через \texttt{--allowedTools} або \texttt{--permission-mode}
+\item Skills типу \texttt{/commit} --- не доступні у \texttt{-p}; описуй прозою
+\item Auto mode --- після 3 блоків поспіль аборт
+\end{itemize}
+
+\section{\texttt{--bare} mode}
+
+\texttt{claude --bare -p "..."} пропускає auto-discovery: hooks, skills, plugins, MCP servers, auto memory, \texttt{CLAUDE.md}.
+
+\begin{itemize}[leftmargin=2em]
+\item Однаковий результат на будь-якій машині (важливо для CI)
+\item Інструменти: Bash, Read, Edit (інші додавай явно)
+\item \textbf{Caveat:} bare mode НЕ читає \texttt{CLAUDE\_CODE\_OAUTH\_TOKEN}. Лише \texttt{ANTHROPIC\_API\_KEY} або \texttt{apiKeyHelper}
+\end{itemize}
+
+\section{Output formats}
+
+\subsection{\texttt{--output-format text} (default)}
+
+Plain text у stdout.
+
+\subsection{\texttt{--output-format json}}
+
+\begin{lstlisting}
+claude -p "Summarize" --output-format json | jq -r '.result'
+\end{lstlisting}
+
+Поля JSON-відповіді:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{result} --- текстова відповідь Claude
+\item \texttt{session\_id} --- UUID, для \texttt{--resume}
+\item \texttt{total\_cost\_usd} --- витрати на запит (моніторинг!)
+\item \texttt{num\_turns} --- скільки ітерацій
+\item \texttt{is\_error} --- bool
+\item \texttt{structured\_output} --- якщо передано \texttt{--json-schema}
+\end{itemize}
+
+\subsection{\texttt{--output-format stream-json}}
+
+Newline-delimited events. Типи з docs:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{system/init} --- перша подія; \texttt{plugins[]} і \texttt{plugin\_errors[]} (fail CI якщо плагін не завантажився)
+\item \texttt{system/api\_retry} --- перед ретраєм; \texttt{attempt}, \texttt{max\_retries}, \texttt{retry\_delay\_ms}, \texttt{error\_status}, \texttt{error}
+\item \texttt{stream\_event} --- з \texttt{--include-partial-messages}; partial deltas
+\end{itemize}
+
+\subsection{\texttt{--json-schema}}
+
+Гарантія структури:
+
+\begin{lstlisting}
+claude -p "Extract function names from auth.py" \
+  --output-format json \
+  --json-schema '{"type":"object","properties":{
+    "functions":{"type":"array","items":{"type":"string"}}},
+    "required":["functions"]}' \
+  | jq '.structured_output'
+\end{lstlisting}
+
+\section{Permissions у headless}
+
+\subsection{6 permission-режимів}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Mode} & \textbf{Що автоприймає} & \textbf{CI use case} \\
+\hline
+\texttt{default} & Reads only & Sensitive review \\
+\texttt{acceptEdits} & Reads + edits + filesystem cmds & Apply-fix у MR \\
+\texttt{plan} & Reads only & Readonly research \\
+\texttt{auto} & Майже все, з classifier & \textbf{Не для \texttt{-p}} \\
+\texttt{dontAsk} & Тільки allow-rules & \textbf{Locked-down CI} \\
+\texttt{bypassPermissions} & Все, окрім protected paths & Container/VM only \\
+\hline
+\end{tabular}
+
+\subsection{Permission rule syntax}
+
+\texttt{Tool(matcher)} --- patterns використовують glob \texttt{*}.
+
+\textbf{Critical:} пробіл перед \texttt{*} обовʼязковий.
+
+\begin{lstlisting}
+# WRONG: also matches `git diff-index`
+--allowedTools "Bash(git diff*)"
+
+# RIGHT: only matches `git diff <something>`
+--allowedTools "Bash(git diff *)"
+\end{lstlisting}
+
+\subsection{settings.json для CI}
+
+\begin{lstlisting}
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Read(.)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "WebFetch",
+      "Bash(curl *)"
+    ],
+    "defaultMode": "dontAsk"
+  }
+}
+\end{lstlisting}
+
+\textbf{Запуск:} \texttt{claude --settings ./ci-settings.json -p "..."}.
+
+\subsection{Protected paths}
+
+Завжди заборонені для авто-запису: \texttt{.git}, \texttt{.vscode}, \texttt{.idea}, \texttt{.husky}, \texttt{.claude} (з винятками для \texttt{commands/}, \texttt{agents/}, \texttt{skills/}, \texttt{worktrees/}), \texttt{.gitconfig}, \texttt{.bashrc}/\texttt{.zshrc}, \texttt{.mcp.json}, \texttt{.claude.json}.
+
+\section{Auth у CI}
+
+\subsection{Precedence (від високого до низького)}
+
+\begin{enumerate}
+\item Cloud (\texttt{CLAUDE\_CODE\_USE\_BEDROCK} / \texttt{\_VERTEX} / \texttt{\_FOUNDRY})
+\item \texttt{ANTHROPIC\_AUTH\_TOKEN} --- Bearer (для LLM-gateway proxy)
+\item \texttt{ANTHROPIC\_API\_KEY} --- X-Api-Key (direct Anthropic API)
+\item \texttt{apiKeyHelper} --- script для rotating creds
+\item \texttt{CLAUDE\_CODE\_OAUTH\_TOKEN} --- long-lived OAuth (subscription)
+\item \texttt{/login} OAuth --- default Pro/Max/Team/Enterprise
+\end{enumerate}
+
+\subsection{\texttt{claude setup-token}}
+
+Для CI без браузера. 1 рік валідності, subscription auth.
+
+\begin{lstlisting}
+claude setup-token
+# walks through OAuth, prints token to terminal
+export CLAUDE_CODE_OAUTH_TOKEN=<token>
+\end{lstlisting}
+
+\textbf{Caveat:} \texttt{--bare} НЕ читає цю змінну.
+
+\subsection{\texttt{apiKeyHelper}}
+
+\begin{lstlisting}
+{ "apiKeyHelper": "/usr/local/bin/get-api-key.sh" }
+\end{lstlisting}
+
+Скрипт виводить ключ у stdout. Викликається кожні 5 хв або на HTTP 401. Тюнинг: \texttt{CLAUDE\_CODE\_API\_KEY\_HELPER\_TTL\_MS}.
+
+\subsection{OIDC для cloud}
+
+\begin{itemize}[leftmargin=2em]
+\item GitLab \texttt{->} AWS: \texttt{aws sts assume-role-with-web-identity} через \texttt{CI\_JOB\_JWT\_V2}
+\item GitLab \texttt{->} GCP: WIF + \texttt{gcloud auth login --cred-file=<(...)}
+\item GitHub \texttt{->} AWS: \texttt{aws-actions/configure-aws-credentials@v4} + \texttt{id-token: write}
+\item GitHub \texttt{->} GCP: \texttt{google-github-actions/auth@v2}
+\end{itemize}
+
+\section{Cost ceilings}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Flag} & \textbf{Семантика} \\
+\hline
+\texttt{--max-turns N} & N agentic ітерацій \texttt{->} exit з error. Default: no limit \\
+\texttt{--max-budget-usd \$} & Hard stop по витратах \\
+\texttt{--fallback-model} & Fallback на secondary якщо primary overloaded \\
+\texttt{--no-session-persistence} & Не пише сесію на диск \\
+\hline
+\end{tabular}
+
+\section{GitLab CI шаблон}
+
+\begin{lstlisting}[language=yaml]
+stages:
+  - ai
+
+claude-review:
+  stage: ai
+  image: node:24-alpine3.21
+  timeout: 10 minutes
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  before_script:
+    - apk add --no-cache git curl bash jq
+    - curl -fsSL https://claude.ai/install.sh | bash
+    - export PATH="$HOME/.local/bin:$PATH"
+  script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - git diff "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"...HEAD > diff.patch
+    - >
+      cat diff.patch | claude -p
+      --bare
+      --permission-mode plan
+      --output-format json
+      --max-turns 3
+      --max-budget-usd 1.00
+      --append-system-prompt "Senior code reviewer. JSON output."
+      > review.json
+    - jq -r '.result' review.json
+\end{lstlisting}
+
+\textbf{CI/CD variables:} \texttt{ANTHROPIC\_API\_KEY} (masked); опційно \texttt{GITLAB\_ACCESS\_TOKEN} для постингу коментарів.
+
+\section{GitHub Actions шаблон}
+
+\begin{lstlisting}[language=yaml]
+name: Claude Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: "Review for bugs and security."
+          claude_args: "--max-turns 5 --max-budget-usd 1.00"
+\end{lstlisting}
+
+Action \texttt{anthropics/claude-code-action@v1} приймає:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{prompt} --- інструкції
+\item \texttt{claude\_args} --- pass-through для CLI flag-ів
+\item \texttt{anthropic\_api\_key} --- required для direct API
+\item \texttt{use\_bedrock} / \texttt{use\_vertex} --- boolean
+\end{itemize}
+
+\section{Pitfalls (top-10)}
+
+\begin{enumerate}
+\item Interactive auth attempt --- нема ключа \texttt{->} browser \texttt{->} CI hangs
+\item Secrets у логах через \texttt{--debug}
+\item Permission prompt без allowlist \texttt{->} hang до timeout
+\item Runaway costs без \texttt{--max-turns}
+\item OAuth token не працює з \texttt{--bare}
+\item Auto mode у \texttt{-p} \texttt{->} aborts
+\item \texttt{ANTHROPIC\_API\_KEY} переб'є subscription
+\item Plugin failures silent без stream-json parsing
+\item Skills типу \texttt{/commit} не доступні у \texttt{-p}
+\item \texttt{--bare} пропускає \texttt{CLAUDE.md} \texttt{->} project conventions not loaded
+\end{enumerate}
+
+\section{Безпечні дефолти для CI}
+
+\begin{lstlisting}
+claude -p "$PROMPT" \
+  --bare \
+  --permission-mode dontAsk \
+  --allowedTools "Read,Bash(git diff *),Bash(git log *)" \
+  --max-turns 5 \
+  --max-budget-usd 1.00 \
+  --output-format json \
+  --no-session-persistence
+\end{lstlisting}
+
+\section{Production чек-ліст}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] Auth не в коді: \texttt{secrets} / masked variables
+\item[$\square$] \texttt{--max-turns N} ставить стелю
+\item[$\square$] \texttt{--max-budget-usd} для hard stop
+\item[$\square$] \texttt{--permission-mode dontAsk} або \texttt{acceptEdits}
+\item[$\square$] \texttt{--allowedTools} narrow --- нема \texttt{Bash(*)}
+\item[$\square$] Deny \texttt{.env}, \texttt{secrets/**} у settings
+\item[$\square$] \texttt{--bare} для reproducibility
+\item[$\square$] \texttt{--output-format json} для downstream
+\item[$\square$] Stream-json \texttt{system/init} parsing якщо плагіни критичні
+\item[$\square$] Job timeout на CI-рівні
+\item[$\square$] Concurrency limit
+\item[$\square$] OIDC замість long-lived keys для cloud
+\end{itemize}
+
+\section{Дебаг checklist}
+
+\begin{enumerate}
+\item \texttt{claude --version} --- встановлений у CI image?
+\item \texttt{echo \$\{ANTHROPIC\_API\_KEY:0:8\}...} --- env var присутній (без друку повного ключа)
+\item \texttt{claude auth status} --- exit 0 = OK, JSON-вивід
+\item \texttt{--verbose} локально (НЕ в CI без masking)
+\item Stream-json \texttt{system/init} --- перевір \texttt{plugin\_errors}
+\item \texttt{--max-turns 1} --- мінімізуй для повторюваності
+\end{enumerate}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- claude -p locally}
+
+\begin{lstlisting}
+claude -p "Summarize this file" sample.txt --output-format json | jq -r '.result'
+claude --bare -p "Summarize" sample.txt --allowedTools "Read"
+\end{lstlisting}
+
+\subsection{Вправа 2 --- diff review з JSON Schema}
+
+\begin{lstlisting}
+cat diff.patch | claude -p \
+  --append-system-prompt "Senior reviewer. Output JSON." \
+  --permission-mode plan \
+  --output-format json \
+  --json-schema "$(cat schema.json)" \
+  --max-turns 1 \
+  > review.json
+\end{lstlisting}
+
+\subsection{Вправа 3 --- GitLab CI}
+
+\texttt{ANTHROPIC\_API\_KEY} (masked, protected); copy \texttt{gitlab-ci-starter.yml} \texttt{->} \texttt{.gitlab-ci.yml}; push до feature branch; open MR.
+
+\subsection{Вправа 4 --- mock OIDC}
+
+\begin{lstlisting}
+bash mock-aws-oidc.sh   # симулятор aws sts assume-role-with-web-identity
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/headless}{code.claude.com/docs/en/headless} --- \texttt{-p} flag, \texttt{--bare}, output formats
+\item \href{https://code.claude.com/docs/en/cli-reference}{code.claude.com/docs/en/cli-reference} --- повний список flag-ів
+\item \href{https://code.claude.com/docs/en/permission-modes}{code.claude.com/docs/en/permission-modes} --- 6 режимів, classifier behavior
+\item \href{https://code.claude.com/docs/en/authentication}{code.claude.com/docs/en/authentication} --- precedence, \texttt{setup-token}, \texttt{apiKeyHelper}
+\item \href{https://code.claude.com/docs/en/settings}{code.claude.com/docs/en/settings} --- settings.json schema
+\item \href{https://code.claude.com/docs/en/gitlab-ci-cd}{code.claude.com/docs/en/gitlab-ci-cd} --- GitLab templates
+\item \href{https://code.claude.com/docs/en/github-actions}{code.claude.com/docs/en/github-actions} --- GitHub Actions v1
+\item \href{https://github.com/anthropics/claude-code-action}{github.com/anthropics/claude-code-action} --- офіційний action
+\item Цей репо: \texttt{workshops/08-headless-ci/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

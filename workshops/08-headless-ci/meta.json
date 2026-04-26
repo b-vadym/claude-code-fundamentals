@@ -1,0 +1,47 @@
+{
+  "title": "Workshop 08 — Headless / CI/CD: Claude Code у пайплайні",
+  "branch": "production",
+  "duration_minutes": 90,
+  "slides_count": 38,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений (`claude --version`)",
+    "Git-репо для тестових запитів",
+    "Доступ до GitLab або GitHub репо для останніх двох вправ",
+    "`jq` для парсингу JSON-виводу",
+    "`ANTHROPIC_API_KEY` або `CLAUDE_CODE_OAUTH_TOKEN` (наприклад, `claude setup-token`)"
+  ],
+  "learning_objectives": [
+    "Запустити `claude -p` з парсингом JSON / stream-json",
+    "Спроєктувати allowlist для headless: `--allowedTools` + `--permission-mode dontAsk`",
+    "Налаштувати auth у CI: API key vs OAuth token vs OIDC",
+    "Написати робочий `.gitlab-ci.yml` для AI-ревʼю MR",
+    "Поставити стелю на витрати: `--max-turns`, `--max-budget-usd`, безпечні дефолти"
+  ],
+  "topics": [
+    "`-p` / `--print` mode",
+    "`--bare` для відтворюваних CI-запусків",
+    "Output formats: text / json / stream-json",
+    "Permission allowlists у headless",
+    "Auth у CI: env vars, `setup-token`, OIDC, `apiKeyHelper`",
+    "GitLab CI / GitHub Actions templates",
+    "PR/MR review pattern",
+    "Cost ceilings + pitfalls"
+  ],
+  "deliverables": [
+    "slides.md (~36 слайдів)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/headless",
+    "https://code.claude.com/docs/en/cli-reference",
+    "https://code.claude.com/docs/en/permission-modes",
+    "https://code.claude.com/docs/en/authentication",
+    "https://code.claude.com/docs/en/settings",
+    "https://code.claude.com/docs/en/gitlab-ci-cd",
+    "https://code.claude.com/docs/en/github-actions",
+    "https://github.com/anthropics/claude-code-action"
+  ]
+}

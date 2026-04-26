@@ -19,5 +19,12 @@
     "branch": "extending",
     "base": "/claude-code-fundamentals/04-skills/",
     "out": "dist/04-skills"
+  },
+  {
+    "dir": "07-mcp-servers",
+    "title": "Workshop 07 — MCP-сервери: будуємо свій на Python",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/07-mcp-servers/",
+    "out": "dist/07-mcp-servers"
   }
 ]

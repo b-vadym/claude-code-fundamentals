@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "my-clock": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/ABSOLUTE/PATH/TO/workshops/07-mcp-servers/exercises/04-connect-claude",
+        "run",
+        "server.py"
+      ],
+      "env": {
+        "DEBUG": "${DEBUG:-0}"
+      }
+    }
+  }
+}

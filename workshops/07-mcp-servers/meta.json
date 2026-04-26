@@ -1,0 +1,42 @@
+{
+  "title": "Workshop 07 — MCP-сервери: будуємо свій на Python",
+  "branch": "extending",
+  "duration_minutes": 90,
+  "slides_count": 41,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "Python 3.10+ і uv (`curl -LsSf https://astral.sh/uv/install.sh | sh`)",
+    "Node.js 18+ для MCP Inspector (`npx`)",
+    "Базове розуміння JSON-RPC і декораторів Python"
+  ],
+  "learning_objectives": [
+    "Розуміти MCP-архітектуру: host, client, server, два рівні (data/transport)",
+    "Написати STDIO-сервер з tool, resource, prompt через Python SDK FastMCP",
+    "Підключити сервер до Claude Code через `claude mcp add` або `.mcp.json`",
+    "Дебажити сервер у MCP Inspector і через stderr-логи",
+    "Вибрати правильний транспорт (STDIO/Streamable HTTP) і scope (local/project/user)"
+  ],
+  "topics": [
+    "MCP architecture: hosts/clients/servers, JSON-RPC, lifecycle",
+    "Primitives: tools, resources, prompts (+ notifications)",
+    "Python SDK: FastMCP decorators, type hints → schema",
+    "Transports: STDIO (default) vs Streamable HTTP",
+    "Auth: env-vars for stdio, OAuth/Bearer for HTTP",
+    "Connecting to Claude Code: CLI + .mcp.json + scopes",
+    "Debugging: MCP Inspector, stderr logs, /mcp"
+  ],
+  "deliverables": [
+    "slides.md (41 слайд)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://modelcontextprotocol.io/docs/concepts/architecture",
+    "https://modelcontextprotocol.io/docs/develop/build-server",
+    "https://github.com/modelcontextprotocol/python-sdk",
+    "https://modelcontextprotocol.io/docs/tools/inspector",
+    "https://code.claude.com/docs/en/mcp"
+  ]
+}

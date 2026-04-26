@@ -1,0 +1,44 @@
+{
+  "title": "Workshop 10 — Subagents & Agent Teams",
+  "branch": "production",
+  "duration_minutes": 90,
+  "slides_count": 30,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v2.1.63+ (Agent tool, перейменоване з Task)",
+    "Доступ до ~/.claude/agents/ і .claude/agents/",
+    "Базове розуміння YAML і Markdown",
+    "(Опційно) Workshop 02 token-economy для контексту ціни"
+  ],
+  "learning_objectives": [
+    "Викликати built-in Explore subagent для пошуку без захаращення main",
+    "Написати кастомний subagent з frontmatter і tool-restrictions",
+    "Запустити 3 паралельних subagent-и в одному message-і",
+    "Збудувати researcher → planner → reviewer chain через файли",
+    "Вибрати правильно: subagent vs agent team vs main conversation"
+  ],
+  "topics": [
+    "Built-in subagents: Explore, Plan, general-purpose",
+    "Custom subagent: location, frontmatter, system prompt",
+    "Agent tool (formerly Task) and invocation patterns",
+    "Parallel dispatch in a single message",
+    "Isolated context and self-contained task prompts",
+    "State sharing: summary returns vs file-based artifacts",
+    "Foreground vs background subagents",
+    "Subagent limitations and pitfalls",
+    "Agent teams architecture (experimental)",
+    "Decision tree: subagent vs team vs main"
+  ],
+  "deliverables": [
+    "slides.md (~35 слайдів)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/subagents",
+    "https://code.claude.com/docs/en/agent-teams",
+    "https://code.claude.com/docs/en/headless",
+    "https://code.claude.com/docs/en/cli-reference"
+  ]
+}

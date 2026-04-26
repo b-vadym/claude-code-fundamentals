@@ -1,0 +1,16 @@
+[
+  {
+    "dir": "01-fundamentals",
+    "title": "Claude Code: Fundamentals",
+    "branch": "legacy",
+    "base": "/claude-code-fundamentals/",
+    "out": "dist"
+  },
+  {
+    "dir": "02-token-economy",
+    "title": "Claude Code: Економіка токенів",
+    "branch": "legacy",
+    "base": "/claude-code-fundamentals/token-economy/",
+    "out": "dist/token-economy"
+  }
+]

@@ -2,13 +2,11 @@
   "name": "claude-code-developers",
   "private": true,
   "scripts": {
-    "dev": "slidev slides.md --open",
-    "dev:economy": "slidev token-economy.md --port 3031 --open",
-    "build": "npm run build:fundamentals && npm run build:economy",
-    "build:fundamentals": "slidev build slides.md --base /claude-code-fundamentals/ --out dist",
-    "build:economy": "slidev build token-economy.md --base /claude-code-fundamentals/token-economy/ --out dist/token-economy",
-    "export": "slidev export slides.md",
-    "export:economy": "slidev export token-economy.md"
+    "dev": "slidev workshops/01-fundamentals/slides.md --open",
+    "dev:economy": "slidev workshops/02-token-economy/slides.md --port 3031 --open",
+    "build": "node scripts/build-all.mjs",
+    "export": "slidev export workshops/01-fundamentals/slides.md",
+    "export:economy": "slidev export workshops/02-token-economy/slides.md"
   },
   "dependencies": {
     "@iconify-json/carbon": "^1.2.20",

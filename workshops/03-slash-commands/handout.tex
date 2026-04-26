@@ -1,0 +1,398 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 03 --- Slash Commands: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 03 --- Slash Commands}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 03: Slash Commands}\\[0.6em]
+  {\large Глибше у `/`-команди --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс для самостійного перечитування. Не повторює слайди --- сухе зведення команд, frontmatter-полів, чек-листів і decision-trees. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/skills}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{The big merge: commands = skills}
+
+З останнього оновлення Claude Code custom commands були злиті у формат skills.
+
+\begin{tabular}{ll}
+\hline
+\textbf{Що} & \textbf{Шлях} \\
+\hline
+Legacy command (працює) & \texttt{.claude/commands/deploy.md} \\
+New skill-form command   & \texttt{.claude/skills/deploy/SKILL.md} \\
+\hline
+\end{tabular}
+
+Обидва створюють \texttt{/deploy}. \textbf{Skill виграє} при однаковому імені. Frontmatter --- спільний schema. Нові команди пишуться у skill-формі, бо отримують: supporting files, \texttt{disable-model-invocation}, \texttt{paths}, \texttt{context: fork}.
+
+\section{Команда vs auto-skill}
+
+Одна різниця у frontmatter:
+
+\begin{lstlisting}[language=yaml]
+---
+disable-model-invocation: true   # це робить її командою
+---
+\end{lstlisting}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Frontmatter} & \textbf{Тригер} & \textbf{Use case} \\
+\hline
+default                            & \texttt{/name} АБО Claude          & Безпечні задачі \\
+\texttt{disable-model-invocation: true} & \texttt{/name} тільки         & Side effects (deploy, commit) \\
+\texttt{user-invocable: false}     & Claude тільки                      & Background знання \\
+\hline
+\end{tabular}
+
+\section{Frontmatter cheatsheet}
+
+\subsection{Командний мінімум}
+
+\begin{lstlisting}[language=yaml]
+---
+name: git-summary                              # /git-summary
+description: Summarize recent git commits      # текст у /-меню
+argument-hint: [--since=<duration>]            # підказка автокомпліту
+disable-model-invocation: true                 # робить це командою
+allowed-tools: Bash(git log *)                 # pre-approval
+---
+\end{lstlisting}
+
+\subsection{Усі релевантні поля}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Поле} & \textbf{Тип} & \textbf{Призначення} \\
+\hline
+\texttt{name} & string & \texttt{/name}; kebab-case, $\le$64 \\
+\texttt{description} & string & UX у меню; $\le$1536 з \texttt{when\_to\_use} \\
+\texttt{argument-hint} & string & автокомпліт-підказка \\
+\texttt{arguments} & list & іменовані позиційні (\texttt{\$name}) \\
+\texttt{disable-model-invocation} & bool & команда-only \\
+\texttt{user-invocable} & bool & Claude-only (false = ховає) \\
+\texttt{allowed-tools} & string/list & pre-approval \\
+\texttt{paths} & glob list & обмеження автотригера \\
+\texttt{shell} & string & \texttt{bash} (default) / \texttt{powershell} \\
+\texttt{context: fork} & string & subagent-ізоляція \\
+\texttt{model}, \texttt{effort} & string & override на час команди \\
+\hline
+\end{tabular}
+
+\section{\$ARGUMENTS: чотири способи}
+
+\begin{lstlisting}[language=yaml]
+---
+name: migrate-component
+arguments: [name, from, to]
+---
+Migrate $name from $from to $to.
+\end{lstlisting}
+
+\textit{/migrate-component SearchBar React Vue}:
+
+\begin{tabular}{ll}
+\hline
+\textbf{Синтаксис} & \textbf{Значення} \\
+\hline
+\texttt{\$ARGUMENTS} & \texttt{SearchBar React Vue} (все одним рядком) \\
+\texttt{\$ARGUMENTS[0]} & \texttt{SearchBar} \\
+\texttt{\$0}, \texttt{\$1}, \texttt{\$2} & \texttt{SearchBar}, \texttt{React}, \texttt{Vue} \\
+\texttt{\$name}, \texttt{\$from}, \texttt{\$to} & те саме за іменами \\
+\hline
+\end{tabular}
+
+\textbf{Лапки = один токен:} \texttt{/cmd "hello world"} $\to$ \texttt{\$0 = hello world}.
+
+\textbf{Якщо плейсхолдера немає} --- Claude Code сам додає \texttt{ARGUMENTS: <text>} у кінець SKILL.md.
+
+\section{Shell-ін'єкція через !`cmd`}
+
+Виконується \textbf{до} того, як Claude побачить промпт. Вивід підставляється у тіло.
+
+\subsection{Inline}
+
+\begin{lstlisting}
+- Working dir: !`pwd`
+- Branch: !`git branch --show-current`
+- Latest: !`git log -1 --oneline`
+\end{lstlisting}
+
+\subsection{Multi-line block}
+
+\begin{lstlisting}
+```!
+node --version
+git status --short
+```
+\end{lstlisting}
+
+\subsection{Економія}
+
+Без ін'єкції: 4--5 turn-ів (Claude $\to$ Bash $\to$ Claude $\to$ \dots). З ін'єкцією: 1 turn.
+
+\subsection{Kill-switch}
+
+\begin{lstlisting}
+{ "disableSkillShellExecution": true }
+\end{lstlisting}
+
+Замінює кожен \texttt{!`cmd`} на \texttt{[shell command execution disabled by policy]}. Не зачіпає bundled і managed skills.
+
+\section{allowed-tools: pre-approval, не sandbox}
+
+\textbf{Що робить:} дозволяє listed tools без per-use approval prompt-у поки команда активна.
+
+\textbf{Що НЕ робить:}
+\begin{itemize}
+\item НЕ блокує інші tool-и --- вони далі викликаються через approval prompt
+\item НЕ ізолює від файлової системи
+\item НЕ замінює permission settings
+\end{itemize}
+
+\textbf{Цитата docs:} \emph{``It does not restrict which tools are available: every tool remains callable, and your permission settings still govern tools that are not listed.''}
+
+\subsection{Pattern syntax}
+
+\begin{lstlisting}
+allowed-tools: Bash(git add *) Bash(git commit *) Read
+\end{lstlisting}
+
+\begin{itemize}
+\item \texttt{ToolName} --- весь tool
+\item \texttt{ToolName(matcher)} --- glob-патерн
+\item Space-separated string АБО YAML list
+\end{itemize}
+
+\subsection{Справжній sandbox через settings.json}
+
+\begin{lstlisting}
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(rm *)",
+      "Bash(curl *)",
+      "Bash(git push *)"
+    ]
+  }
+}
+\end{lstlisting}
+
+\textbf{Combo} \texttt{allowed-tools} (UX) + \texttt{deny rules} (security) = щільний контроль.
+
+\section{Plugin packaging}
+
+\subsection{Структура}
+
+\begin{lstlisting}
+my-git-commands/
+├── .claude-plugin/
+│   └── plugin.json     # тільки маніфест тут
+└── skills/
+    ├── git-summary/SKILL.md
+    └── env-info/SKILL.md
+\end{lstlisting}
+
+\textbf{Pitfall:} НЕ кладіть \texttt{skills/}, \texttt{commands/}, \texttt{agents/}, \texttt{hooks/} \textbf{всередину} \texttt{.claude-plugin/}.
+
+\subsection{Мінімальний plugin.json}
+
+\begin{lstlisting}
+{
+  "name": "my-git-commands",
+  "description": "Git workflow commands",
+  "version": "0.1.0",
+  "author": { "name": "You" }
+}
+\end{lstlisting}
+
+\subsection{Namespacing}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Що} & \textbf{Інвокація} \\
+\hline
+Personal/Project skill & \texttt{/git-summary} \\
+Plugin skill           & \texttt{/my-git-commands:git-summary} \\
+\hline
+\end{tabular}
+
+Префікс \texttt{my-git-commands} = поле \texttt{name} у \texttt{plugin.json}.
+
+\subsection{Локальне тестування}
+
+\begin{lstlisting}
+claude --plugin-dir ./my-git-commands
+\end{lstlisting}
+
+\begin{itemize}
+\item Завантажує плагін без installation
+\item Перебиває одноіменний marketplace плагін на сесію
+\item Multiple flags: \texttt{--plugin-dir ./p1 --plugin-dir ./p2}
+\item \texttt{/reload-plugins} підхоплює зміни SKILL.md
+\end{itemize}
+
+\subsection{Версіонування}
+
+\begin{itemize}
+\item Set explicit \texttt{version} $\to$ юзери оновлюються лише при bump-і
+\item Skip $\to$ commit SHA = версія, кожен коміт оновлює юзерів
+\end{itemize}
+
+\section{Debug: 5-крокова перевірка}
+
+\begin{enumerate}
+\item \textbf{Шлях точний?}
+  \begin{lstlisting}
+ls ~/.claude/skills/<name>/SKILL.md
+ls .claude/skills/<name>/SKILL.md
+  \end{lstlisting}
+
+\item \textbf{Frontmatter валідний YAML?} \texttt{---} зверху і знизу, відступи пробілами
+
+\item \textbf{\texttt{name} валідне?} kebab-case, цифри, дефіси, $\le$64 символів
+
+\item \textbf{Створював нову теку під час сесії?} Потрібен рестарт Claude Code
+
+\item \textbf{Плагін?} \texttt{--plugin-dir} був переданий? \texttt{/reload-plugins} після edit?
+\end{enumerate}
+
+\subsection{Часті проблеми}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Симптом} & \textbf{Перевірка} \\
+\hline
+Команди нема у \texttt{/}-меню & Шлях, frontmatter, рестарт \\
+\texttt{\$ARGUMENTS} лишився як literal & Синтаксис підстановки, YAML парсинг \\
+\texttt{!`cmd`} поверне placeholder & \texttt{disableSkillShellExecution} у settings \\
+Description обрізається & \texttt{SLASH\_COMMAND\_TOOL\_CHAR\_BUDGET} \\
+\hline
+\end{tabular}
+
+\section{Production-чек-ліст}
+
+Перед публікацією:
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{name} kebab-case, унікальний
+\item[$\square$] \texttt{description} однорядкова, корисна у \texttt{/}-меню
+\item[$\square$] \texttt{argument-hint} для команд з аргументами
+\item[$\square$] \texttt{disable-model-invocation: true} для всього з side effects
+\item[$\square$] \texttt{allowed-tools} лише потрібне
+\item[$\square$] \texttt{!`cmd`} лише там, де економія турнів варта
+\item[$\square$] Deny-rules у settings.json для справжньої ізоляції
+\item[$\square$] Тестовано на чистій сесії
+\item[$\square$] Plugin: \texttt{version} у \texttt{plugin.json} для semver
+\item[$\square$] Plugin: \texttt{README.md} як встановити, що робить
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- встановити команду}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/skills/git-summary
+cp starter/SKILL.md ~/.claude/skills/git-summary/SKILL.md
+# рестарт Claude Code
+/git-summary --since=yesterday
+\end{lstlisting}
+
+\subsection{Вправа 2 --- shell-ін'єкція}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/skills/env-info
+# у SKILL.md:
+- Working dir: !`pwd`
+- Branch: !`git branch --show-current`
+\end{lstlisting}
+
+\subsection{Вправа 3 --- allowed-tools}
+
+\begin{lstlisting}
+allowed-tools: Bash(git status *) Bash(git log *) Bash(git branch *)
+# Бонус: deny-rules у ~/.claude/settings.json
+\end{lstlisting}
+
+\subsection{Вправа 4 --- спакувати у плагін}
+
+\begin{lstlisting}
+mkdir -p my-git-commands/.claude-plugin
+cp -r starter/skills my-git-commands/skills
+# написати plugin.json
+claude --plugin-dir ./my-git-commands
+/my-git-commands:git-summary --since=yesterday
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/skills}{code.claude.com/docs/en/skills} --- Skills + commands merged
+\item \href{https://code.claude.com/docs/en/plugins}{code.claude.com/docs/en/plugins} --- Plugin manifest, namespacing
+\item \href{https://code.claude.com/docs/en/permissions}{code.claude.com/docs/en/permissions} --- Allow/deny rules
+\item \href{https://code.claude.com/docs/en/commands}{code.claude.com/docs/en/commands} --- Built-in commands reference
+\item Цей репо: \texttt{workshops/03-slash-commands/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

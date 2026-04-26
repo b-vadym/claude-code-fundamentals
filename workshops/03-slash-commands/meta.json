@@ -1,0 +1,42 @@
+{
+  "title": "Workshop 03 — Slash Commands: глибше",
+  "branch": "extending",
+  "duration_minutes": 90,
+  "slides_count": 35,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "Доступ до ~/.claude/ (для personal commands)",
+    "Git-репо для тестування команд",
+    "Базове розуміння YAML і Markdown"
+  ],
+  "learning_objectives": [
+    "Написати slash-команду з frontmatter, $ARGUMENTS, argument-hint",
+    "Додати динамічний контекст через !`команда` shell-ін'єкцію",
+    "Пре-апрувити tools через allowed-tools і розуміти різницю з deny-rules",
+    "Запакувати дві команди у плагін з namespaced invocation /plugin:name",
+    "Мігрувати legacy .claude/commands/foo.md на новий skill-формат"
+  ],
+  "topics": [
+    "Commands merged into skills (the big merge)",
+    "Frontmatter for commands: name, description, argument-hint, disable-model-invocation",
+    "$ARGUMENTS variants: $ARGUMENTS, $0, $ARGUMENTS[0], $name",
+    "Shell injection: !`cmd` and ```! ``` blocks",
+    "allowed-tools (pre-approval) vs deny-rules (sandbox)",
+    "Plugin manifest, namespacing, --plugin-dir local testing",
+    "Migration from legacy commands/ format",
+    "Debug checklist: command not visible, $ARGUMENTS not substituted, !`cmd` placeholder"
+  ],
+  "deliverables": [
+    "slides.md (35 слайдів)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/skills",
+    "https://code.claude.com/docs/en/plugins",
+    "https://code.claude.com/docs/en/permissions",
+    "https://code.claude.com/docs/en/commands"
+  ]
+}

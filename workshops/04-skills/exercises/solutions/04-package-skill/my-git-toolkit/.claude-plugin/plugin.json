@@ -1,0 +1,8 @@
+{
+  "name": "my-git-toolkit",
+  "description": "Git workflow skills: status summary, bisect helper",
+  "version": "0.1.0",
+  "author": {
+    "name": "Workshop Participant"
+  }
+}

@@ -4,3 +4,12 @@ dist/
 .claude/
 .playwright-mcp/
 session-report-*.html
+
+# LaTeX intermediates
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

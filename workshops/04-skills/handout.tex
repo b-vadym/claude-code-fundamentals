@@ -1,0 +1,285 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 04 — Skills: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 04 — Skills}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me · 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 04: Skills}\\[0.6em]
+  {\large Від ідеї до продакшну — handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс для самостійного перечитування. Не повторює слайди — сухе зведення команд, frontmatter-полів, чек-листів і decision-trees. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/skills}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Що таке skill}
+
+Markdown-файл (\texttt{SKILL.md}) з YAML-frontmatter. Лежить у теці. Claude бачить frontmatter усіх skill-ів завжди; тіло вантажить лише при тригері.
+
+\subsection{Локації}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Scope} & \textbf{Path} & \textbf{Назва інвокації} \\
+\hline
+Personal & \texttt{\textasciitilde/.claude/skills/<name>/SKILL.md} & \texttt{/<name>} \\
+Project & \texttt{.claude/skills/<name>/SKILL.md} & \texttt{/<name>} \\
+Plugin & \texttt{<plugin>/skills/<name>/SKILL.md} & \texttt{/<plugin>:<name>} \\
+\hline
+\end{tabular}
+
+\textbf{Precedence:} Enterprise $>$ Personal $>$ Project $>$ Plugin.
+
+\section{Frontmatter cheatsheet}
+
+\subsection{Критичні поля}
+
+\begin{lstlisting}[language=yaml]
+---
+name: skill-name              # kebab-case, ≤64, default = directory
+description: Use when user asks ...   # головний trigger
+allowed-tools: [Bash, Read]   # pre-approve без per-use prompts
+---
+\end{lstlisting}
+
+\textbf{Бюджет:} \texttt{description} + \texttt{when\_to\_use} разом $\le$ 1536 символів.
+
+\subsection{Контроль інвокації}
+
+\begin{lstlisting}[language=yaml]
+disable-model-invocation: true   # лише /name від юзера, Claude не може
+user-invocable: false            # Claude може, юзер не бачить у /
+paths: ["**/*.rs"]               # тригер тільки коли файли матчать
+\end{lstlisting}
+
+\subsection{Ізоляція}
+
+\begin{lstlisting}[language=yaml]
+context: fork                    # subagent, окремий контекст
+agent: Explore                   # тип subagent (Explore | Plan | general-purpose | custom)
+model: claude-sonnet             # override моделі поки skill активний
+effort: high                     # low | medium | high | xhigh | max
+\end{lstlisting}
+
+\subsection{Аргументи}
+
+\begin{lstlisting}[language=yaml]
+argument-hint: [good-sha] [bad-sha]   # автокомпліт-підказка
+arguments: [good, bad]                 # named positional, доступні як $good, $bad
+shell: bash                            # bash | powershell — для !`команда`
+\end{lstlisting}
+
+\section{Anatomy теки}
+
+\begin{lstlisting}
+my-skill/
+├── SKILL.md            # обов'язковий entry
+├── scripts/            # опційно — bash/python utility
+├── references/         # опційно — doc-и для on-demand завантаження
+└── assets/             # опційно — шаблони, ікони
+\end{lstlisting}
+
+\textbf{Розмір:} цільтесь у $\le$500 рядків у \texttt{SKILL.md}. Більше --- виносьте у \texttt{references/}.
+
+\section{Progressive disclosure}
+
+3 рівні завантаження, кожен наступний дорожчий:
+
+\begin{enumerate}
+\item \textbf{Метадата} (name + description) — завжди в контексті
+\item \textbf{Тіло SKILL.md} — при тригері
+\item \textbf{Supporting files} — лише при покликанні з SKILL.md
+\end{enumerate}
+
+\textbf{Як розбивати:}
+
+\begin{lstlisting}
+cloud-deploy/
+├── SKILL.md             # decision tree
+└── references/
+    ├── aws.md           # деталі AWS
+    ├── gcp.md           # деталі GCP
+    └── azure.md         # деталі Azure
+\end{lstlisting}
+
+У \texttt{SKILL.md} обов'язково \textbf{markdown-link} (не plain text):
+
+\begin{lstlisting}[language=]
+For AWS: read [aws.md](references/aws.md)
+\end{lstlisting}
+
+\section{Description: правила тригерів}
+
+\subsection{Що робить хорошу description}
+
+\begin{itemize}
+\item Front-load trigger у перших 50 символах
+\item Action verbs (\texttt{Use when}, \texttt{Diagnose}, \texttt{Refactor})
+\item Перерахуй \textbf{синоніми} (як юзер може сказати по-різному)
+\item Явно \textbf{коли} (контексти, тригерні фрази), не лише \textbf{що}
+\item «Pushy» якщо skill часто недо-тригериться
+\end{itemize}
+
+\subsection{Red flags}
+
+\begin{itemize}
+\item Занадто загально: \emph{«Helpful tips»}
+\item Без action verb: \emph{«Code explanations»}
+\item Занадто вузько (overfit): \emph{«Fix bugs in TypeScript files only»}
+\item Закопаний use case (description починається з \emph{«This skill provides»})
+\item Дублює \texttt{name}
+\end{itemize}
+
+\section{Plugin packaging}
+
+\subsection{Структура}
+
+\begin{lstlisting}
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json     # маніфест
+└── skills/
+    └── skill-name/
+        └── SKILL.md
+\end{lstlisting}
+
+\textbf{Pitfall:} НЕ кладіть \texttt{skills/}, \texttt{commands/}, \texttt{hooks/} \textbf{всередину} \texttt{.claude-plugin/}.
+
+\subsection{Мінімальний \texttt{plugin.json}}
+
+\begin{lstlisting}[language=]
+{
+  "name": "my-plugin",
+  "description": "Brief description",
+  "version": "0.1.0",
+  "author": { "name": "You" }
+}
+\end{lstlisting}
+
+\textbf{Versioning:}
+\begin{itemize}
+\item Set explicit \texttt{version} → юзери оновлюються лише при bump
+\item Skip → commit SHA = версія, кожен коміт оновлює юзерів
+\end{itemize}
+
+\textbf{Інвокація:} \texttt{/my-plugin:skill-name} (namespaced).
+
+\section{Debug: skill не тригериться}
+
+6-крокова діагностика:
+
+\begin{enumerate}
+\item \textbf{Skill в \texttt{/}-меню?} Ні → перевір шлях \texttt{\textasciitilde/.claude/skills/<name>/SKILL.md}
+\item \textbf{Перефразуй точно під description.} Спрацювало → tuning description
+\item \textbf{Грепни \texttt{disable-model-invocation} / \texttt{user-invocable}}
+\item \textbf{Перевір \texttt{paths}} — може skill активується лише на матчинг файлах
+\item \textbf{Manual \texttt{/skill-name} працює?} Так → skill loaded, проблема matching
+\item \textbf{Запит надто простий?} Claude не тригерить skill для тривіальних задач (\textit{by design}).
+\end{enumerate}
+
+\subsection{Бюджет descriptions}
+
+$\sim$1\% контекстного вікна = $\sim$8K символів за замовчуванням. 100+ skill-ів з довгими description --- обріжуть.
+
+\textbf{Підняти:} \texttt{SLASH\_COMMAND\_TOOL\_CHAR\_BUDGET=16000}
+
+\section{Production-чек-ліст}
+
+Перед публікацією:
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{name} kebab-case, унікальний у твоєму неймспейсі
+\item[$\square$] \texttt{description} front-load trigger, action verb, синоніми
+\item[$\square$] \texttt{SKILL.md} $\le$ 500 рядків, важке у \texttt{references/}
+\item[$\square$] Markdown-links на supporting файли (не plain text)
+\item[$\square$] \texttt{allowed-tools} лише потрібне, не all
+\item[$\square$] \texttt{disable-model-invocation: true} для всього з side-effects
+\item[$\square$] Тестовано неявно (семантичні запити, не лише \texttt{/skill-name})
+\item[$\square$] \texttt{README.md} у репо: як встановити, що робить
+\item[$\square$] \texttt{version} у \texttt{plugin.json} якщо semver
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- встановити skill}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/skills/git-status-summary
+cp starter/SKILL.md ~/.claude/skills/git-status-summary/SKILL.md
+# перезапусти Claude Code
+\end{lstlisting}
+
+\subsection{Вправа 4 --- встановити плагін}
+
+\begin{lstlisting}
+claude plugin install ./my-git-toolkit
+# далі:
+/my-git-toolkit:git-status-summary
+/my-git-toolkit:git-bisect-helper <good-sha> <bad-sha>
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/skills}{code.claude.com/docs/en/skills} --- Skills overview
+\item \href{https://code.claude.com/docs/en/plugins}{code.claude.com/docs/en/plugins} --- Plugins
+\item \href{https://agentskills.io}{agentskills.io} --- Open Agent Skills standard
+\item Цей репо: \texttt{workshops/04-skills/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

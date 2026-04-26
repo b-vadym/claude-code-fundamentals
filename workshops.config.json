@@ -12,5 +12,12 @@
     "branch": "legacy",
     "base": "/claude-code-fundamentals/token-economy/",
     "out": "dist/token-economy"
+  },
+  {
+    "dir": "04-skills",
+    "title": "Workshop 04 — Skills: від ідеї до продакшну",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/04-skills/",
+    "out": "dist/04-skills"
   }
 ]

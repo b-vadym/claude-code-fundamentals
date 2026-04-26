@@ -1,0 +1,38 @@
+{
+  "title": "Workshop 04 — Skills: від ідеї до продакшну",
+  "branch": "extending",
+  "duration_minutes": 90,
+  "slides_count": 33,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "Доступ до ~/.claude/ (для personal skills)",
+    "Базове розуміння YAML і Markdown"
+  ],
+  "learning_objectives": [
+    "Написати свій skill з нуля та встановити локально",
+    "Затюнити description так, щоб skill тригерився надійно",
+    "Розбити великий skill на SKILL.md + references/ (progressive disclosure)",
+    "Запакувати skill-и у плагін з plugin.json та namespaced invocation",
+    "Діагностувати чому skill не тригериться (6-крокова перевірка)"
+  ],
+  "topics": [
+    "Skill anatomy + frontmatter reference",
+    "Description writing best practices",
+    "Progressive disclosure",
+    "Plugin packaging + versioning",
+    "Distribution: project / personal / plugin",
+    "Debugging + token budget"
+  ],
+  "deliverables": [
+    "slides.md (33 слайди)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/skills",
+    "https://code.claude.com/docs/en/plugins",
+    "https://agentskills.io"
+  ]
+}

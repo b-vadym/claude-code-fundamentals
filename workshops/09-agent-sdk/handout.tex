@@ -1,0 +1,337 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 09 --- Agent SDK: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 09 --- Agent SDK}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{python2}{
+    keywords={import,from,as,def,return,if,else,elif,for,while,with,async,await,True,False,None,class,raise,try,except},
+    sensitive=true,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 09: Agent SDK}\\[0.6em]
+  {\large Будуємо власного асистента --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Не повторює слайди --- сухий конспект SDK API, frontmatter-полів, code snippets, чек-листів. Кожен факт посилається на офіційні docs (\href{https://docs.claude.com/en/api/getting-started}{docs.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Три SDK для одного Claude}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Surface} & \textbf{Install} & \textbf{Use case} \\
+\hline
+Anthropic Client SDK & \texttt{pip install anthropic} & Кастомні цикли, прецизійний контроль \\
+Claude Agent SDK & \texttt{pip install claude-agent-sdk} & Claude Code-like агенти \\
+Claude Code CLI & \texttt{npm i -g @anthropic-ai/claude-code} & Інтерактивна робота \\
+\hline
+\end{tabular}
+
+\textbf{Note:} Claude Code SDK перейменовано на Claude Agent SDK (\href{https://docs.claude.com/en/agent-sdk/overview}{docs}).
+
+\textbf{Версія:} Opus 4.7 (\texttt{claude-opus-4-7}) потребує Agent SDK $\ge$ v0.2.111.
+
+\section{Latest models (2026-04)}
+
+\begin{tabular}{lllll}
+\hline
+\textbf{Model} & \textbf{API ID} & \textbf{Context} & \textbf{Input \$} & \textbf{Output \$} \\
+\hline
+Opus 4.7 & \texttt{claude-opus-4-7} & 1M & \$5/MTok & \$25/MTok \\
+Sonnet 4.6 & \texttt{claude-sonnet-4-6} & 1M & \$3/MTok & \$15/MTok \\
+Haiku 4.5 & \texttt{claude-haiku-4-5} & 200K & \$1/MTok & \$5/MTok \\
+\hline
+\end{tabular}
+
+Source: \href{https://docs.claude.com/en/about-claude/models/overview}{models overview}.
+
+\section{Anthropic SDK основа}
+
+\subsection{Hello world}
+
+\begin{lstlisting}[language=python2]
+from anthropic import Anthropic
+
+client = Anthropic()  # reads ANTHROPIC_API_KEY
+
+message = client.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(message.content[0].text)
+\end{lstlisting}
+
+\subsection{Streaming}
+
+\begin{lstlisting}[language=python2]
+with client.messages.stream(
+    model="claude-haiku-4-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Write a haiku"}],
+) as stream:
+    for text in stream.text_stream:
+        print(text, end="", flush=True)
+    final = stream.get_final_message()
+\end{lstlisting}
+
+\subsection{Reading usage}
+
+\begin{lstlisting}[language=python2]
+u = response.usage
+u.input_tokens                  # post-breakpoint input
+u.output_tokens
+u.cache_creation_input_tokens   # cache write (1.25x or 2x)
+u.cache_read_input_tokens       # cache hit (0.1x)
+\end{lstlisting}
+
+\section{Tool use cheatsheet}
+
+\subsection{Define}
+
+\begin{lstlisting}[language=python2]
+TOOLS = [{
+    "name": "days_between",
+    "description": "Calculate days between two ISO dates.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "start": {"type": "string"},
+            "end":   {"type": "string"},
+        },
+        "required": ["start", "end"],
+    },
+}]
+\end{lstlisting}
+
+\subsection{Loop pattern}
+
+\begin{lstlisting}[language=python2]
+messages = [{"role": "user", "content": user_msg}]
+MAX_ITER = 10
+for i in range(MAX_ITER):
+    response = client.messages.create(
+        model="claude-opus-4-7", max_tokens=1024,
+        tools=TOOLS, messages=messages,
+    )
+    if response.stop_reason != "tool_use":
+        break
+    tool_uses = [c for c in response.content if c.type == "tool_use"]
+    tool_results = [
+        {"type": "tool_result", "tool_use_id": tu.id,
+         "content": [{"type": "text", "text": run_tool(tu.name, tu.input)}]}
+        for tu in tool_uses
+    ]
+    messages.append({"role": "assistant", "content": response.content})
+    messages.append({"role": "user", "content": tool_results})
+\end{lstlisting}
+
+\subsection{stop\_reason values}
+
+\begin{itemize}
+\item \texttt{end\_turn} --- normal completion, exit
+\item \texttt{tool\_use} --- handle tool, loop
+\item \texttt{max\_tokens} --- output truncated, raise limit
+\item \texttt{stop\_sequence} --- stop sequence hit
+\item \texttt{pause\_turn} --- server tool waiting, requery
+\item \texttt{refusal} --- model refused, surface to user
+\end{itemize}
+
+\textbf{Pricing:} tools add 346 tokens (auto/none) or 313 tokens (any/tool) of system overhead per request for Opus 4.7, Sonnet 4.6, Haiku 4.5 (\href{https://docs.claude.com/en/agents-and-tools/tool-use/overview}{tool-use overview}).
+
+\section{Prompt caching}
+
+\subsection{Multipliers}
+
+\begin{tabular}{lll}
+\hline
+\textbf{TTL} & \textbf{Write cost} & \textbf{Read cost} \\
+\hline
+5 min (default) & 1.25\,$\times$ input & 0.1\,$\times$ input \\
+1 hour & 2.0\,$\times$ input & 0.1\,$\times$ input \\
+\hline
+\end{tabular}
+
+\subsection{Syntax}
+
+\begin{lstlisting}[language=python2]
+response = client.messages.create(
+    model="claude-opus-4-7", max_tokens=1024,
+    system=[
+        {"type": "text", "text": STATIC_PROMPT,
+         "cache_control": {"type": "ephemeral"}},          # 5 min
+        {"type": "text", "text": LARGE_DOC,
+         "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+    ],
+    messages=[{"role": "user", "content": question}],
+)
+\end{lstlisting}
+
+\subsection{Limits}
+
+\begin{itemize}
+\item \textbf{Max breakpoints:} 4 per request
+\item \textbf{Minimum cacheable:} 4096 tokens (Opus 4.7, 4.6, 4.5; Haiku 4.5); 2048 (Sonnet 4.6); 1024 (older)
+\item \textbf{Lookback window:} 20 blocks per breakpoint
+\end{itemize}
+
+\subsection{Invalidation hierarchy}
+
+\texttt{tools $\to$ system $\to$ messages}. Зміна вгорі $\to$ нижні рівні інвалідуються. Стратегія: статичне вгорі (tools, system, examples), динамічне внизу (last user message).
+
+\subsection{Cost math example}
+
+10-turn session, 50K-token system prompt, Opus 4.7 (\$5/MTok input):
+
+\begin{itemize}
+\item \textbf{Without caching:} $10 \times 50000 \times \$5/10^6 = \$2.50$
+\item \textbf{With 5-min caching:} $50000 \times \$5 \times 1.25 / 10^6 + 9 \times 50000 \times \$5 \times 0.1/10^6 = \$0.31 + \$0.225 = \$0.535$
+\item \textbf{Saved:} $\sim$78\%
+\end{itemize}
+
+\section{Claude Agent SDK}
+
+\subsection{Hello world}
+
+\begin{lstlisting}[language=python2]
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+async def main():
+    async for message in query(
+        prompt="Find all TODO comments and summarize",
+        options=ClaudeAgentOptions(allowed_tools=["Read", "Glob", "Grep"]),
+    ):
+        if hasattr(message, "result"):
+            print(message.result)
+
+asyncio.run(main())
+\end{lstlisting}
+
+\subsection{Built-in tools}
+
+\texttt{Read}, \texttt{Write}, \texttt{Edit}, \texttt{Bash}, \texttt{Glob}, \texttt{Grep}, \texttt{Monitor}, \texttt{WebSearch}, \texttt{WebFetch}, \texttt{AskUserQuestion}.
+
+\subsection{Two interfaces}
+
+\begin{itemize}
+\item \texttt{query()} --- one-shot, async iterator
+\item \texttt{ClaudeSDKClient} --- multi-turn, custom in-process tools, hooks, sessions
+\end{itemize}
+
+\subsection{Filesystem config}
+
+Agent SDK reads \texttt{.claude/} and \texttt{\textasciitilde/.claude/} by default: skills, commands, \texttt{CLAUDE.md}, plugins. Opt out with \texttt{setting\_sources=[]}.
+
+\section{Debug top-6}
+
+\begin{enumerate}
+\item \textbf{\texttt{max\_tokens} forgotten} --- \texttt{TypeError} on \texttt{messages.create}
+\item \textbf{\texttt{stop\_reason=max\_tokens}} --- output truncated, raise limit
+\item \textbf{Cache not hitting} --- check size $\ge$ 4096, prefix unchanged, breakpoint position
+\item \textbf{\texttt{asyncio} in Jupyter} --- \texttt{import nest\_asyncio; nest\_asyncio.apply()}
+\item \textbf{\texttt{stop\_reason=refusal}} --- model refused, soften system prompt
+\item \textbf{Tool loop infinite} --- enforce \texttt{MAX\_ITER}, log tool inputs
+\end{enumerate}
+
+\section{Production checklist}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{MAX\_ITER} in tool loop ($\sim$10)
+\item[$\square$] \texttt{max\_tokens} chosen consciously
+\item[$\square$] Log \texttt{usage} on every call
+\item[$\square$] \texttt{cache\_control} on static blocks $\ge$ 4096 tokens
+\item[$\square$] Retry on \texttt{429} (SDK does this; verify config)
+\item[$\square$] Timeout reviewed (default 600s)
+\item[$\square$] Handle \texttt{RateLimitError}, \texttt{APIError}, \texttt{BadRequestError}
+\item[$\square$] Handle all 6 \texttt{stop\_reason} values
+\item[$\square$] API key from env / secret manager, never in code
+\end{itemize}
+
+\section{Setup commands}
+
+\subsection{Install + auth}
+
+\begin{lstlisting}[language=bash]
+pip install anthropic claude-agent-sdk
+export ANTHROPIC_API_KEY=sk-ant-...
+\end{lstlisting}
+
+\subsection{Workshop exercises}
+
+\begin{lstlisting}[language=bash]
+cd workshops/09-agent-sdk/exercises
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python solutions/01-hello-agent/hello.py
+python solutions/02-tool-use/agent.py
+python solutions/03-prompt-caching/cache_demo.py
+python solutions/04-mychat-cli/mychat.py
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://docs.claude.com/en/api/getting-started}{docs.claude.com/en/api/getting-started}
+\item \href{https://docs.claude.com/en/agent-sdk/overview}{docs.claude.com/en/agent-sdk/overview}
+\item \href{https://docs.claude.com/en/agents-and-tools/tool-use/overview}{docs.claude.com/en/agents-and-tools/tool-use/overview}
+\item \href{https://docs.claude.com/en/build-with-claude/prompt-caching}{docs.claude.com/en/build-with-claude/prompt-caching}
+\item \href{https://docs.claude.com/en/about-claude/models/overview}{docs.claude.com/en/about-claude/models/overview}
+\item \href{https://github.com/anthropics/anthropic-sdk-python}{github.com/anthropics/anthropic-sdk-python}
+\item \href{https://github.com/anthropics/claude-agent-sdk-python}{github.com/anthropics/claude-agent-sdk-python}
+\item \href{https://github.com/anthropics/claude-agent-sdk-demos}{github.com/anthropics/claude-agent-sdk-demos}
+\end{itemize}
+
+\end{document}

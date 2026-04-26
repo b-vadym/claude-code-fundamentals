@@ -13,3 +13,6 @@ session-report-*.html
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# Worktrees for parallel agent generation
+worktrees/

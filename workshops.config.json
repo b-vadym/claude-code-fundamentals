@@ -19,5 +19,12 @@
     "branch": "extending",
     "base": "/claude-code-fundamentals/04-skills/",
     "out": "dist/04-skills"
+  },
+  {
+    "dir": "06-plugins",
+    "title": "Workshop 06 — Plugins: глибоке занурення в авторство",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/06-plugins/",
+    "out": "dist/06-plugins"
   }
 ]

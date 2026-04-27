@@ -1,0 +1,11 @@
+{
+  "name": "git-toolkit",
+  "version": "0.1.0",
+  "description": "Git workflow plugin: status summary, log stats, commit reviewer",
+  "author": {
+    "name": "Vadym Bondarenko",
+    "email": "vadym.bondarenko@vcdev.me"
+  },
+  "homepage": "https://github.com/vcdev-me/git-toolkit",
+  "license": "MIT"
+}

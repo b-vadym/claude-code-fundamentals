@@ -1,0 +1,19 @@
+{
+  "name": "vcdev-marketplace",
+  "owner": {
+    "name": "Vadym Bondarenko",
+    "email": "vadym.bondarenko@vcdev.me"
+  },
+  "metadata": {
+    "description": "Personal Claude Code plugins by vcdev"
+  },
+  "plugins": [
+    {
+      "name": "git-toolkit",
+      "source": "./plugins/git-toolkit",
+      "description": "Git workflow plugin: status summary, log stats, commit reviewer",
+      "category": "git",
+      "tags": ["git", "workflow", "logging"]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "title": "Workshop 09 — Agent SDK: будуємо власного асистента",
+  "branch": "production",
+  "duration_minutes": 90,
+  "slides_count": 36,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Python 3.10+",
+    "ANTHROPIC_API_KEY env var (console.anthropic.com)",
+    "pip install anthropic claude-agent-sdk"
+  ],
+  "learning_objectives": [
+    "Викликати Claude програмно через Anthropic SDK (messages.create, streaming)",
+    "Реалізувати tool use: визначити tool, обробити tool_use → tool_result цикл",
+    "Вмикнути prompt caching і читати cache_creation/cache_read у usage",
+    "Розрізнити Anthropic SDK, Claude Agent SDK, Claude Code CLI — і вибрати правильний",
+    "Зібрати CLI-чат із streaming, історією та caching"
+  ],
+  "topics": [
+    "Anthropic Client SDK (Python): install, messages.create, streaming",
+    "Latest models: Opus 4.7, Sonnet 4.6, Haiku 4.5",
+    "Tool use: input_schema, tool_use/tool_result loop, stop_reason",
+    "Prompt caching: cache_control, 5min vs 1h TTL, invalidation, cost math",
+    "Claude Agent SDK: query() vs ClaudeSDKClient, hooks, subagents, MCP",
+    "Production checklist + debug top-6"
+  ],
+  "deliverables": [
+    "slides.md (~36 слайдів)",
+    "exercises/ (4 вправи + solutions, Python venv)",
+    "handout.tex (LaTeX → PDF референс)",
+    "research.md"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://docs.claude.com/en/api/getting-started",
+    "https://docs.claude.com/en/agent-sdk/overview",
+    "https://docs.claude.com/en/agents-and-tools/tool-use/overview",
+    "https://docs.claude.com/en/build-with-claude/prompt-caching",
+    "https://docs.claude.com/en/about-claude/models/overview"
+  ]
+}

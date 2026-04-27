@@ -33,5 +33,12 @@
     "branch": "extending",
     "base": "/claude-code-fundamentals/07-mcp-servers/",
     "out": "dist/07-mcp-servers"
+  },
+  {
+    "dir": "09-agent-sdk",
+    "title": "Workshop 09 — Agent SDK: будуємо власного асистента",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/09-agent-sdk/",
+    "out": "dist/09-agent-sdk"
   }
 ]

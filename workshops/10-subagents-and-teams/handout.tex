@@ -1,0 +1,414 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 10 -- Subagents \& Agent Teams: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 10 -- Subagents \& Agent Teams}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 10: Subagents \& Agent Teams}\\[0.6em]
+  {\large Коли спавнити, як визначати, як збирати у команду --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Не повторює слайди --- сухе зведення команд, frontmatter-полів, decision-tree, чек-листів. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/subagents}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Що таке subagent}
+
+Окрема Claude-сесія з власним контекстним вікном, system prompt-ом і tool-restrictions. Викликається з main-сесії через \texttt{Agent} tool (раніше \texttt{Task}, перейменовано у v2.1.63). Не бачить історію main-розмови. Повертає у main лише summary.
+
+\subsection{Built-in subagents}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Agent} & \textbf{Model} & \textbf{Tools} \\
+\hline
+Explore & Haiku & Read-only \\
+Plan & Inherit & Read-only \\
+General-purpose & Inherit & Усі \\
+statusline-setup & Sonnet & (обмежені) \\
+Claude Code Guide & Haiku & (обмежені) \\
+\hline
+\end{tabular}
+
+\textbf{Explore} приймає \texttt{thoroughness}: \texttt{quick} / \texttt{medium} / \texttt{very thorough} (Claude обирає сам з фрази запиту).
+
+\textbf{Subagent не може спавнити іншого subagent-а.} \texttt{Plan} існує спеціально, щоб запобігти infinite-nesting у plan-mode.
+
+\section{Розташування файлів}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Scope} & \textbf{Path} & \textbf{Priority} \\
+\hline
+Managed settings & \texttt{<managed>/.claude/agents/<name>.md} & 1 (highest) \\
+\texttt{--agents} CLI flag & (JSON) & 2 \\
+Project & \texttt{.claude/agents/<name>.md} & 3 \\
+Personal & \texttt{\textasciitilde/.claude/agents/<name>.md} & 4 \\
+Plugin & \texttt{<plugin>/agents/<name>.md} & 5 (lowest) \\
+\hline
+\end{tabular}
+
+\textbf{Discovery:} project subagent-и знаходяться walk-up з working dir. \texttt{--add-dir} \emph{не} сканує subagent-и.
+
+\section{Frontmatter cheatsheet}
+
+\subsection{Обов'язкові поля}
+
+\begin{lstlisting}[language=yaml]
+---
+name: code-reviewer            # kebab-case, унікальний
+description: Use proactively after code changes  # коли делегувати
+---
+\end{lstlisting}
+
+\subsection{Часті поля}
+
+\begin{lstlisting}[language=yaml]
+tools: Read, Grep, Glob, Bash    # allowlist; інакше успадковує усі
+disallowedTools: Write, Edit     # denylist (першим)
+model: sonnet                    # sonnet | opus | haiku | full ID | inherit
+permissionMode: dontAsk          # default | acceptEdits | auto | dontAsk | bypassPermissions | plan
+maxTurns: 20                     # стелиш від running-amok
+color: blue                      # red | blue | green | yellow | purple | orange | pink | cyan
+\end{lstlisting}
+
+\subsection{Розширені поля}
+
+\begin{lstlisting}[language=yaml]
+skills: [api-conventions, ...]   # preload skill-контенту (НЕ успадковує з parent)
+mcpServers:                      # inline-MCP лише для цього subagent
+  - playwright:
+      type: stdio
+      command: npx
+      args: ["-y", "@playwright/mcp@latest"]
+hooks:                           # PreToolUse / PostToolUse / Stop
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "./scripts/validate.sh"
+memory: project                  # user | project | local --- persistent dir
+background: true                 # завжди у фоні
+effort: high                     # low | medium | high | xhigh | max
+isolation: worktree              # окрема git-копія репо
+initialPrompt: "..."             # auto-submit при --agent main
+\end{lstlisting}
+
+\section{Тіло subagent-а}
+
+Markdown = system prompt. \textbf{Замінює} default Claude Code system prompt. Тільки твоя інструкція + базові env-деталі (working dir).
+
+Pattern:
+\begin{enumerate}
+  \item Один абзац: «You are X».
+  \item Workflow з нумерованими кроками.
+  \item Чек-ліст або decision-tree.
+  \item Формат виводу.
+\end{enumerate}
+
+\section{Як викликати}
+
+\subsection{Natural language}
+\begin{lstlisting}
+Use the test-runner subagent to fix failing tests
+\end{lstlisting}
+
+\subsection{@-mention (гарантовано)}
+\begin{lstlisting}
+@code-reviewer (agent) look at the auth changes
+\end{lstlisting}
+
+\subsection{Whole session as subagent}
+\begin{lstlisting}
+claude --agent code-reviewer
+\end{lstlisting}
+
+\subsection{Default for project}
+\texttt{.claude/settings.json}:
+\begin{lstlisting}
+{ "agent": "code-reviewer" }
+\end{lstlisting}
+
+\section{Patterns}
+
+\subsection{Parallel dispatch}
+
+Multiple \texttt{Agent} tool-calls у одному assistant turn:
+
+\begin{lstlisting}
+> Use 3 Explore subagents IN PARALLEL to investigate auth, tests, build
+\end{lstlisting}
+
+Всі три виконуються concurrent. Wall-clock економить. Token-overhead не змінює (3$\times$ vs sequential).
+
+\textbf{Caveat:} «Running many subagents that each return detailed results can consume significant context.» 3--5 normal, 10+ --- задумайся про agent team.
+
+\subsection{Chain через файли}
+
+Subagent-и не передають дані напряму. Передають через working directory (shared):
+
+\begin{enumerate}
+  \item Researcher: читає task.md, пише research.md
+  \item Planner: читає research.md, пише plan.md
+  \item Reviewer: читає обидва, пише review.md
+  \item Main: читає review.md, презентує юзеру
+\end{enumerate}
+
+Кожен subagent повертає лише one-line confirmation. Main-context чистий.
+
+\section{Ізольований контекст}
+
+Subagent \textbf{отримує}:
+\begin{itemize}
+  \item Свій system prompt (тіло md)
+  \item Task prompt від main (точно як написано)
+  \item Базові env-деталі (working dir)
+  \item Доступ до файлів (якщо tools дозволяють)
+\end{itemize}
+
+Subagent \textbf{не отримує}:
+\begin{itemize}
+  \item Історію main розмови
+  \item Результати інших subagent-ів
+  \item Skills, завантажені у parent (треба \texttt{skills:} у frontmatter)
+\end{itemize}
+
+\textbf{Правило:} task prompt має бути самодостатнім. Не «продовж те, що ми обговорювали».
+
+\textbf{cd не персистить} між Bash-викликами всередині subagent-а і не впливає на main working dir.
+
+\section{Foreground vs Background}
+
+\begin{tabular}{lll}
+\hline
+& \textbf{Foreground} & \textbf{Background} \\
+\hline
+Блокує main? & Так & Ні \\
+Permission prompts & Передаються тобі & Pre-approved при спавні \\
+Clarifying questions & Передаються тобі & Tool-call падає \\
+\hline
+\end{tabular}
+
+Перейти у фон вручну: «run this in the background» або \texttt{Ctrl+B}. Вимкнути всі: \texttt{CLAUDE\_CODE\_DISABLE\_BACKGROUND\_TASKS=1}.
+
+\section{Resume subagent}
+
+Кожен \texttt{Agent} call --- новий instance, чистий контекст. Щоб продовжити конкретного subagent-а:
+
+\begin{itemize}
+  \item Claude отримує agent ID після завершення
+  \item Resumption через \texttt{SendMessage} tool з ID
+  \item \texttt{SendMessage} \textbf{доступний лише при увімкнених agent teams}: \texttt{CLAUDE\_CODE\_EXPERIMENTAL\_AGENT\_TEAMS=1}
+\end{itemize}
+
+Транскрипти: \texttt{\textasciitilde/.claude/projects/\{project\}/\{sessionId\}/subagents/agent-\{id\}.jsonl}. Cleanup за \texttt{cleanupPeriodDays} (default 30).
+
+\section{Обмеження subagent-ів}
+
+\begin{enumerate}
+  \item Не можуть спавнити інших subagent-ів (flat hierarchy).
+  \item Немає mid-flight user interaction (background subagent не може попросити permission).
+  \item Permissions фіксуються при спавні.
+  \item Не успадковують skills з parent --- \texttt{skills:} у frontmatter явно.
+  \item Plugin-subagent-и втрачають \texttt{hooks}, \texttt{mcpServers}, \texttt{permissionMode} (security).
+  \item Forks (наслідування історії) --- лише interactive, не у \texttt{claude -p} headless.
+  \item Working dir shared, але \texttt{cd} не персистить між Bash-викликами.
+\end{enumerate}
+
+\section{Agent Teams}
+
+\textbf{Експериментально.} Увімкнути:
+\begin{lstlisting}
+{ "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
+\end{lstlisting}
+
+Потребує Claude Code v2.1.32+.
+
+\subsection{Subagents vs Agent teams}
+
+\begin{tabular}{lll}
+\hline
+& \textbf{Subagents} & \textbf{Agent teams} \\
+\hline
+Контекст & Свій, summary назад до main & Свій, повністю незалежний \\
+Комунікація & Лише з main & Teammate $\leftrightarrow$ teammate \\
+Координація & Main керує & Shared task-list \\
+Token cost & Менший & Значно більший \\
+\hline
+\end{tabular}
+
+\subsection{Архітектура}
+
+\begin{itemize}
+  \item \textbf{Team lead} --- main session, що створила команду
+  \item \textbf{Teammates} --- окремі Claude Code instances
+  \item \textbf{Task list} --- shared список робіт; teammate-и клеймлять
+  \item \textbf{Mailbox} --- inter-agent messaging (\texttt{SendMessage})
+\end{itemize}
+
+Storage: \texttt{\textasciitilde/.claude/teams/\{name\}/config.json}, \texttt{\textasciitilde/.claude/tasks/\{name\}/}.
+
+\subsection{Display modes}
+
+\begin{itemize}
+  \item \texttt{in-process} (default fallback) --- усі teammate-и в main терміналі, Shift+Down цикл
+  \item \texttt{tmux} --- кожен у своєму pane (потребує tmux або iTerm2 + \texttt{it2} CLI)
+  \item Default \texttt{auto} --- split якщо вже у tmux, інакше in-process
+\end{itemize}
+
+Не працює у VS Code terminal, Windows Terminal, Ghostty (split mode).
+
+\subsection{Reuse subagent definitions}
+
+Lead може посилатися на існуюче subagent-визначення:
+\begin{lstlisting}
+> Spawn a teammate using the security-reviewer agent type to audit src/auth/
+\end{lstlisting}
+
+Teammate успадковує \texttt{tools} і \texttt{model}; тіло \textbf{дописується} до системного prompt-а (не замінює).
+
+\textbf{Не успадковуються:} \texttt{skills}, \texttt{mcpServers} --- teammate вантажить їх з project + user settings нормально.
+
+\subsection{Limitations agent teams}
+
+\begin{itemize}
+  \item Експериментально, поведінка може змінитися
+  \item \texttt{/resume} не відновлює in-process teammate-ів
+  \item Task status може лагати
+  \item Shutdown повільний
+  \item Одна team на сесію (no nested)
+  \item Lead фіксований на час життя team
+  \item Permissions фіксуються при спавні
+\end{itemize}
+
+\section{Decision tree}
+
+\begin{lstlisting}
+Задача переді мною
+ ├─ Швидкий fix у відомих файлах? → Main conversation
+ ├─ Verbose output (логи, search)? → Explore subagent
+ ├─ Multi-step research + дія? → general-purpose subagent
+ ├─ 3+ незалежних investigation-ів? → Parallel subagent dispatch
+ ├─ research → plan → implement → review? → Subagent chain (file-based)
+ ├─ Workers мають дискутувати? → Agent teams (experimental)
+ └─ Те саме + повний контекст? → Fork (experimental, interactive only)
+\end{lstlisting}
+
+\textbf{Heuristic:} старт з main. Subagent --- коли verbose output загрожує main-context-у. Team --- коли координація між workers і є цінність.
+
+\section{Production-чек-ліст}
+
+Перед коммітом subagent-а у \texttt{.claude/agents/}:
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{name} kebab-case, унікальний
+\item[$\square$] \texttt{description} front-load + «use proactively»
+\item[$\square$] \texttt{tools} мінімально-достатній allowlist
+\item[$\square$] \texttt{model} обираєш свідомо: \texttt{haiku} для простого, \texttt{sonnet} для аналізу
+\item[$\square$] System prompt --- workflow з нумерованими кроками + формат виводу
+\item[$\square$] Self-contained task prompt
+\item[$\square$] Test взаємодії: і \texttt{@-mention}, і natural-language
+\item[$\square$] \texttt{README.md} у \texttt{.claude/agents/} для команди
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- Explore}
+
+\begin{lstlisting}
+> Use the Explore subagent to find all places where DocRef is used
+\end{lstlisting}
+
+\subsection{Вправа 2 --- встановити custom subagent}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/agents
+cp starter/commit-message-writer.md ~/.claude/agents/
+# перезапустити Claude Code
+@commit-message-writer (agent)
+\end{lstlisting}
+
+\subsection{Вправа 3 --- паралель}
+
+\begin{lstlisting}
+> Use 3 Explore subagents IN PARALLEL to investigate auth, tests, build
+\end{lstlisting}
+
+\subsection{Вправа 4 --- chain}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/agents workdir
+cp starter/agents/*.md ~/.claude/agents/
+cp starter/workdir/task.md workdir/
+
+> Use chain-researcher to read workdir/task.md and write workdir/research.md.
+  Then chain-planner reads research.md and writes plan.md.
+  Then chain-reviewer reads both and writes review.md.
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/subagents}{code.claude.com/docs/en/subagents} --- Subagents reference
+\item \href{https://code.claude.com/docs/en/agent-teams}{code.claude.com/docs/en/agent-teams} --- Agent Teams
+\item \href{https://code.claude.com/docs/en/headless}{code.claude.com/docs/en/headless} --- Headless / Agent SDK
+\item \href{https://code.claude.com/docs/en/cli-reference}{code.claude.com/docs/en/cli-reference} --- CLI flags
+\item Цей репо: \texttt{workshops/10-subagents-and-teams/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

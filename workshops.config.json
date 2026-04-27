@@ -14,6 +14,13 @@
     "out": "dist/token-economy"
   },
   {
+    "dir": "03-slash-commands",
+    "title": "Workshop 03 — Slash Commands: глибше",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/03-slash-commands/",
+    "out": "dist/03-slash-commands"
+  },
+  {
     "dir": "04-skills",
     "title": "Workshop 04 — Skills: від ідеї до продакшну",
     "branch": "extending",

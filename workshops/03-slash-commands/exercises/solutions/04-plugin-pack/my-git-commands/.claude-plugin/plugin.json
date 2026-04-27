@@ -1,0 +1,8 @@
+{
+  "name": "my-git-commands",
+  "description": "Git workflow commands: log summary, env info",
+  "version": "0.1.0",
+  "author": {
+    "name": "Workshop Participant"
+  }
+}

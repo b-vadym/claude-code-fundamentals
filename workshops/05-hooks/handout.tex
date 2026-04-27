@@ -1,0 +1,374 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 05 --- Hooks: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 05 --- Hooks}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\small,
+    keywords={true,false,null},
+    sensitive=false,
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 05: Hooks}\\[0.6em]
+  {\large Lifecycle deep dive --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс для самостійного перечитування. Не повторює слайди --- сухе зведення events, exit-code семантики, JSON-output полів, debug-чек-листів. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/hooks}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Що таке hook}
+
+Hook --- user-defined shell-команда (або HTTP-endpoint, prompt, agent) що виконується автоматично у конкретній точці lifecycle Claude Code. Claude Code передає JSON у stdin; hook відповідає через exit code + stdout/stderr.
+
+\textbf{Типи hooks:}
+\begin{itemize}
+\item \texttt{command} --- shell-команда (90\% use cases)
+\item \texttt{http} --- POST у URL
+\item \texttt{mcp\_tool} --- виклик tool на MCP-server
+\item \texttt{prompt} --- single-turn LLM eval (Haiku default)
+\item \texttt{agent} --- multi-turn subagent verification (experimental)
+\end{itemize}
+
+\textbf{Чому detrermined:} skill = Claude вирішує тригерити; hook = Claude Code сам викликає на event. Тому hook-и --- для policy enforcement.
+
+\section{Lifecycle catalogue}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Event} & \textbf{Коли firing} & \textbf{Може block?} \\
+\hline
+\texttt{SessionStart} & сесія стартує/resume & ні (контекст) \\
+\texttt{UserPromptSubmit} & юзер відправив промпт & exit 2 \\
+\texttt{PreToolUse} & перед tool-call & deny \\
+\texttt{PostToolUse} & після успішного tool-call & block з контекстом \\
+\texttt{PostToolUseFailure} & після fail tool-call & ні \\
+\texttt{Stop} & Claude закінчив відповідь & prevent stop \\
+\texttt{SubagentStop} & subagent закінчив & prevent stop \\
+\texttt{PreCompact} & перед compaction & block \\
+\texttt{PostCompact} & після compaction & ні \\
+\texttt{Notification} & CC надсилає notification & ні \\
+\texttt{SessionEnd} & сесія завершується & ні \\
+\hline
+\end{tabular}
+
+\textbf{Інші events} (для довідки): \texttt{UserPromptExpansion}, \texttt{PermissionRequest}, \texttt{PermissionDenied}, \texttt{PostToolBatch}, \texttt{SubagentStart}, \texttt{TaskCreated}, \texttt{TaskCompleted}, \texttt{StopFailure}, \texttt{TeammateIdle}, \texttt{InstructionsLoaded}, \texttt{ConfigChange}, \texttt{CwdChanged}, \texttt{FileChanged}, \texttt{WorktreeCreate}, \texttt{WorktreeRemove}, \texttt{Elicitation}, \texttt{ElicitationResult}.
+
+\section{settings.json schema}
+
+Три рівні nesting: event $\to$ matcher group $\to$ handler.
+
+\begin{lstlisting}[language=json]
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/script.sh",
+            "timeout": 600,
+            "if": "Bash(git *)"
+          }
+        ]
+      }
+    ]
+  }
+}
+\end{lstlisting}
+
+\subsection{Handler fields}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Поле} & \textbf{Обов'язкове} & \textbf{Що робить} \\
+\hline
+\texttt{type} & \checkmark & command \textbar{} http \textbar{} mcp\_tool \textbar{} prompt \textbar{} agent \\
+\texttt{command} & \checkmark (для command) & shell-команда \\
+\texttt{timeout} & --- & секунд до cancel; default 600 (command) \\
+\texttt{if} & --- & permission-rule фільтр (CC v2.1.85+) \\
+\texttt{statusMessage} & --- & текст спінера \\
+\texttt{shell} & --- & bash (default) \textbar{} powershell \\
+\texttt{async} & --- & фонова робота, не блокує \\
+\hline
+\end{tabular}
+
+\section{Matcher patterns}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Pattern} & \textbf{Як evaluating} & \textbf{Приклад} \\
+\hline
+\texttt{"*"}, \texttt{""}, omitted & match all & firing щоразу \\
+Тільки \texttt{[A-Za-z0-9\_|]} & exact / pipe-list & \texttt{"Bash"}, \texttt{"Edit|Write"} \\
+Інші символи & JS regex & \texttt{"\^Notebook"}, \texttt{"mcp\_\_memory\_\_.*"} \\
+\hline
+\end{tabular}
+
+\textbf{Matcher target залежить від event:}
+
+\begin{itemize}
+\item Tool events $\to$ tool name (\texttt{Bash}, \texttt{Edit}, \texttt{mcp\_\_<server>\_\_<tool>})
+\item \texttt{SessionStart} $\to$ source (\texttt{startup}, \texttt{resume}, \texttt{clear}, \texttt{compact})
+\item \texttt{SessionEnd} $\to$ reason (\texttt{clear}, \texttt{logout}, \texttt{prompt\_input\_exit}, \ldots)
+\item \texttt{Notification} $\to$ type (\texttt{permission\_prompt}, \texttt{auth\_success}, \ldots)
+\item \texttt{SubagentStart}/\texttt{SubagentStop} $\to$ agent type
+\item \texttt{PreCompact}/\texttt{PostCompact} $\to$ trigger (\texttt{manual}, \texttt{auto})
+\end{itemize}
+
+\textbf{No matcher support:} \texttt{UserPromptSubmit}, \texttt{Stop}, \texttt{PostToolBatch}, \texttt{TeammateIdle}, \texttt{TaskCreated}, \texttt{TaskCompleted}, \texttt{WorktreeCreate}, \texttt{WorktreeRemove}, \texttt{CwdChanged}.
+
+\section{Exit codes (критично)}
+
+\begin{tabular}{lp{10cm}}
+\hline
+\textbf{Code} & \textbf{Поведінка} \\
+\hline
+\textbf{0} & Дія дозволена. Stdout $\to$ debug log (або контекст для UserPromptSubmit, UserPromptExpansion, SessionStart). \\
+\textbf{2} & \textbf{Block.} Stderr $\to$ Claude (для PreToolUse, PostToolUse) або юзеру. Дія скасована. \\
+Інше (1, 3, \ldots) & Non-blocking error. Транскрипт показує \texttt{<hook> hook error} + перший рядок stderr. Дія продовжується. \\
+\hline
+\end{tabular}
+
+\textbf{Trap:} exit 1 не блокує. Більшість Unix-команд при помилці \texttt{exit 1} --- треба явно \texttt{exit 2}.
+
+\section{JSON output}
+
+\subsection{Universal fields}
+
+\begin{lstlisting}[language=json]
+{
+  "continue": true,
+  "stopReason": "shown to user if continue=false",
+  "suppressOutput": false,
+  "systemMessage": "warning shown to user"
+}
+\end{lstlisting}
+
+\subsection{Per-event decision}
+
+\begin{itemize}
+\item \texttt{PreToolUse} --- \texttt{hookSpecificOutput.permissionDecision}: \texttt{allow}|\texttt{deny}|\texttt{ask}|\texttt{defer}, плюс \texttt{permissionDecisionReason}, \texttt{updatedInput}, \texttt{additionalContext}
+\item \texttt{PostToolUse}, \texttt{Stop}, \texttt{SubagentStop}, \texttt{ConfigChange}, \texttt{PreCompact} --- top-level \texttt{decision: "block"} + \texttt{reason}
+\item \texttt{UserPromptSubmit} --- \texttt{decision: "block"} АБО \texttt{hookSpecificOutput.additionalContext}
+\item \texttt{SessionStart} --- \texttt{hookSpecificOutput.additionalContext} (або просто stdout текст)
+\item \texttt{PermissionRequest} --- \texttt{hookSpecificOutput.decision.behavior}: \texttt{allow}|\texttt{deny}
+\end{itemize}
+
+\textbf{Кілька hooks матчать один event $\to$} найжорсткіше виграє: \texttt{deny > defer > ask > allow}.
+
+\textbf{Ніколи не міксуй exit 2 і JSON output:} Claude Code ігнорує JSON, якщо exit code = 2.
+
+\section{Hook locations і precedence}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Локація} & \textbf{Scope} & \textbf{Shareable?} \\
+\hline
+\texttt{\textasciitilde/.claude/settings.json} & усі проєкти & ні (локально) \\
+\texttt{.claude/settings.json} & один проєкт & так (commit) \\
+\texttt{.claude/settings.local.json} & один проєкт & ні (gitignore) \\
+Managed policy & організація & так (admin) \\
+Plugin \texttt{hooks/hooks.json} & коли plugin enabled & так (bundled) \\
+Skill/agent frontmatter & поки активний & так \\
+\hline
+\end{tabular}
+
+\textbf{Precedence:} managed $>$ local $>$ project $>$ user.
+
+\section{Security boundary}
+
+\begin{itemize}
+\item Hook виконується з \textbf{твоїми} permissions і env --- читає \texttt{\textasciitilde/.ssh/}, \texttt{\textasciitilde/.aws/}, network
+\item Equivalent: \texttt{curl https://... | bash}
+\item \textbf{Ніколи не встановлюй hook з джерела, якому не довіряєш} (random plugins, Discord snippets, AI-generated configs без review)
+\end{itemize}
+
+\textbf{Чому hooks все ж потрібні для security:}
+
+\textit{PreToolUse deny} спрацьовує \textbf{навіть} у \texttt{bypassPermissions} mode і з \texttt{--dangerously-skip-permissions}. Це єдиний механізм policy enforcement, який юзер не може обійти permission-mode toggle-ом.
+
+\section{Debug чек-ліст}
+
+\subsection{Hook не firing}
+
+\begin{enumerate}
+\item \textbf{\texttt{/hooks}} у Claude Code --- read-only browser. Hook у списку?
+\begin{itemize}
+\item Ні $\to$ JSON у settings невалідний (trailing comma, неправильний event name) або файл не там.
+\end{itemize}
+
+\item \textbf{Manual test:}
+\begin{lstlisting}
+echo '{"tool_name":"Bash","tool_input":{"command":"ls"}}' \
+  | ~/.claude/hooks/check-bash.sh
+echo "Exit: $?"
+\end{lstlisting}
+
+\item \texttt{chmod +x} зроблений?
+\item \texttt{jq} встановлений?
+\item Matcher case-sensitive? \texttt{"bash"} $\ne$ \texttt{"Bash"}.
+\item Правильний event? PreToolUse $\ne$ PostToolUse.
+\end{enumerate}
+
+\subsection{JSON validation failed}
+
+Симптом: ``failed to parse hook JSON'' хоча твій вивід валідний.
+
+\textbf{Причина:} \texttt{\textasciitilde/.zshrc} робить \texttt{echo} при старті. Hook spawn-ить shell, profile firing, output prepend-иться до JSON.
+
+\textbf{Fix:} wrap у interactive-only check:
+
+\begin{lstlisting}[language=bash]
+if [[ $- == *i* ]]; then
+  echo "Shell ready"
+fi
+\end{lstlisting}
+
+\subsection{Stop hook runs forever}
+
+Перевіряй \texttt{stop\_hook\_active} першим:
+
+\begin{lstlisting}[language=bash]
+if [ "$(echo "$INPUT" | jq -r '.stop_hook_active')" = "true" ]; then
+  exit 0
+fi
+\end{lstlisting}
+
+\subsection{Debug log}
+
+\begin{lstlisting}
+claude --debug-file /tmp/claude.log
+tail -f /tmp/claude.log
+\end{lstlisting}
+
+Mid-session: \texttt{/debug}.
+
+Транскрипт view \texttt{Ctrl+O} показує: success silent, exit 2 показує stderr, інше non-zero показує \texttt{<hook> hook error}.
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- block dangerous bash}
+
+\begin{lstlisting}
+mkdir -p ~/.claude/hooks
+cp solutions/01-block-dangerous-bash/check-bash.sh \
+   ~/.claude/hooks/check-bash.sh
+chmod +x ~/.claude/hooks/check-bash.sh
+
+# реєструємо у ~/.claude/settings.json: PreToolUse + matcher Bash
+
+# manual test:
+echo '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"}}' \
+  | ~/.claude/hooks/check-bash.sh
+\end{lstlisting}
+
+\subsection{Вправа 2 --- tool log}
+
+\begin{lstlisting}
+cp solutions/02-tool-log/tool-log.sh ~/.claude/hooks/tool-log.sh
+chmod +x ~/.claude/hooks/tool-log.sh
+touch ~/.claude/tool-log.jsonl
+
+# settings.json: PostToolUse без matcher
+
+# tail live:
+tail -f ~/.claude/tool-log.jsonl | jq .
+\end{lstlisting}
+
+\subsection{Вправа 3 --- session context}
+
+\begin{lstlisting}
+cp solutions/03-session-context/session-context.sh \
+   ~/.claude/hooks/session-context.sh
+chmod +x ~/.claude/hooks/session-context.sh
+
+# settings.json: SessionStart без matcher
+\end{lstlisting}
+
+\subsection{Вправа 4 --- prompt warning}
+
+\begin{lstlisting}
+cp solutions/04-prompt-warning/prompt-warning.sh \
+   ~/.claude/hooks/prompt-warning.sh
+chmod +x ~/.claude/hooks/prompt-warning.sh
+
+# settings.json: UserPromptSubmit без matcher
+\end{lstlisting}
+
+\section{Production-чек-ліст}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{chmod +x} на всі скрипти у \texttt{.claude/hooks/}
+\item[$\square$] \texttt{\$CLAUDE\_PROJECT\_DIR} замість \texttt{\$HOME} для project hooks
+\item[$\square$] \texttt{timeout} виставлений (default 600s --- забагато для більшості)
+\item[$\square$] Manual test через pipe sample JSON
+\item[$\square$] Exit 2 там де треба block; exit 0 + JSON для structured
+\item[$\square$] Stop-hook перевіряє \texttt{stop\_hook\_active}
+\item[$\square$] Profile-safe: \texttt{\textasciitilde/.zshrc} не \texttt{echo}-ить unconditionally
+\item[$\square$] \texttt{/hooks} показує hook у списку
+\item[$\square$] README у \texttt{.claude/hooks/} що робить кожен скрипт
+\item[$\square$] CI test: invoke hook на sample fixture
+\end{itemize}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/hooks}{code.claude.com/docs/en/hooks} --- Hooks reference (повна схема)
+\item \href{https://code.claude.com/docs/en/hooks-guide}{code.claude.com/docs/en/hooks-guide} --- Quickstart i приклади
+\item \href{https://code.claude.com/docs/en/settings}{code.claude.com/docs/en/settings} --- settings.json
+\item \href{https://github.com/anthropics/claude-code/blob/main/examples/hooks/bash_command_validator_example.py}{Anthropic bash validator example} --- reference implementation
+\item Цей репо: \texttt{workshops/05-hooks/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,475 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amssymb}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 06 --- Plugins: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 06 --- Plugins}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 06: Plugins}\\[0.6em]
+  {\large Глибоке занурення в авторство --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Не повторює слайди --- сухе зведення схем, маніфестів, чек-листів і pitfalls. Усі факти з офіційних docs (\href{https://code.claude.com/docs/en/plugins}{code.claude.com/docs/en/plugins}, \href{https://code.claude.com/docs/en/plugin-marketplaces}{plugin-marketplaces}, \href{https://code.claude.com/docs/en/plugins-reference}{plugins-reference}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Що таке плагін}
+
+Самодостатня тека з компонентами, що розширює Claude Code. Маніфест \texttt{.claude-plugin/plugin.json} \textbf{опційний}; без нього Claude Code бере ім'я з теки і авто-знаходить компоненти у дефолтних локаціях.
+
+Компоненти, які можна bundle-ити: \texttt{skills/}, \texttt{commands/}, \texttt{agents/}, \texttt{hooks/}, \texttt{.mcp.json}, \texttt{.lsp.json}, \texttt{monitors/}, \texttt{themes/}, \texttt{output-styles/}, \texttt{bin/}, \texttt{settings.json}.
+
+\textbf{Інвокація:} skill-и і команди --- завжди namespaced: \texttt{/<plugin-name>:<component-name>}. Agents --- у \texttt{/agents} як \texttt{<plugin>:<agent>}.
+
+\section{Plugin manifest cheatsheet}
+
+\subsection{Локація}
+
+Тільки одне правильне місце: \texttt{<plugin-root>/.claude-plugin/plugin.json}.
+
+\textbf{Pitfall:} компоненти (\texttt{skills/}, \texttt{commands/}, \texttt{agents/}, \texttt{hooks/}) --- \textbf{на root плагіна}, НЕ всередині \texttt{.claude-plugin/}. Тільки \texttt{plugin.json} живе у \texttt{.claude-plugin/}.
+
+\subsection{Required і metadata}
+
+\begin{lstlisting}
+{
+  "name": "git-toolkit",            // REQUIRED. kebab-case
+  "version": "0.1.0",               // semver OR omit (commit-SHA)
+  "description": "...",
+  "author": { "name": "...", "email": "...", "url": "..." },
+  "homepage": "https://...",
+  "repository": "https://...",
+  "license": "MIT",
+  "keywords": ["git", "workflow"]
+}
+\end{lstlisting}
+
+\subsection{Component-path поля}
+
+\begin{lstlisting}
+{
+  "skills": "./custom/skills/",         // replaces default skills/
+  "skills": ["./skills/", "./extras/"], // or array (default + extra)
+  "commands": "./custom/commands/",
+  "agents": "./custom/agents/",
+  "hooks": "./hooks/hooks.json",
+  "mcpServers": "./.mcp.json",
+  "lspServers": "./.lsp.json",
+  "monitors": "./monitors.json",
+  "outputStyles": "./styles/",
+  "themes": "./themes/"
+}
+\end{lstlisting}
+
+\textbf{Правила:} усі шляхи відносні до plugin root, починаються з \texttt{./}. Кастомний шлях \textbf{замінює} дефолт. Щоб додати --- масив із \texttt{./skills/} плюс твоє.
+
+\subsection{Просунуті поля}
+
+\begin{lstlisting}
+{
+  "userConfig": {
+    "api_token": {
+      "type": "string", "title": "API token",
+      "description": "...", "sensitive": true
+    }
+  },
+  "dependencies": [
+    { "name": "secrets-vault", "version": "~2.1.0" }
+  ]
+}
+\end{lstlisting}
+
+\texttt{userConfig} --- Claude Code запитає юзера при enable; доступне як \texttt{\$\{user\_config.KEY\}}.
+
+\section{Структура теки плагіна}
+
+\begin{lstlisting}
+git-toolkit/
+|-- .claude-plugin/
+|   `-- plugin.json
+|-- skills/
+|   `-- status-summary/SKILL.md
+|-- commands/
+|   `-- log-stats.md
+|-- agents/
+|   `-- commit-message-reviewer.md
+|-- hooks/
+|   `-- hooks.json
+|-- scripts/
+|   `-- log-edit.sh
+|-- .mcp.json                (optional)
+|-- .lsp.json                (optional)
+|-- monitors/monitors.json   (optional)
+|-- bin/                     (optional, added to $PATH)
+|-- settings.json            (optional, only `agent`, `subagentStatusLine`)
+|-- LICENSE
+`-- README.md
+\end{lstlisting}
+
+\section{Multi-component bundling}
+
+\subsection{Skill (директорія + SKILL.md)}
+
+\begin{lstlisting}
+---
+description: Use when user asks for current git working tree state
+allowed-tools: [Bash]
+---
+# git-toolkit:status-summary
+Run `git status --short --branch` and group by section.
+\end{lstlisting}
+
+\subsection{Command (плоский .md)}
+
+\begin{lstlisting}
+---
+description: Show commit count by author for the last 30 days
+allowed-tools: [Bash]
+---
+Run `git shortlog -sn --since="30 days ago"` and format as table.
+\end{lstlisting}
+
+Обидва формати дають \texttt{/git-toolkit:<name>}. Для нових плагінів використовуй \texttt{skills/}; \texttt{commands/} --- legacy.
+
+\subsection{Agent}
+
+\begin{lstlisting}
+---
+name: commit-message-reviewer
+description: Reviews staged commit message
+tools: Bash, Read, Grep
+model: sonnet
+effort: low
+---
+You are a commit-message reviewer...
+\end{lstlisting}
+
+\textbf{Підтримувані поля:} \texttt{name}, \texttt{description}, \texttt{model}, \texttt{effort}, \texttt{maxTurns}, \texttt{tools}, \texttt{disallowedTools}, \texttt{skills}, \texttt{memory}, \texttt{background}, \texttt{isolation} (\texttt{"worktree"} --- єдине валідне).
+
+\textbf{Заборонено для plugin agents:} \texttt{hooks}, \texttt{mcpServers}, \texttt{permissionMode} (security).
+
+\subsection{Hook}
+
+\texttt{hooks/hooks.json}:
+
+\begin{lstlisting}
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/log-edit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+\end{lstlisting}
+
+\textbf{Hook types:} \texttt{command}, \texttt{http}, \texttt{mcp\_tool}, \texttt{prompt}, \texttt{agent}.
+
+\textbf{Найчастіші events:} \texttt{SessionStart}, \texttt{UserPromptSubmit}, \texttt{PreToolUse}, \texttt{PostToolUse}, \texttt{PostToolUseFailure}, \texttt{Stop}, \texttt{SubagentStart}, \texttt{SubagentStop}, \texttt{PreCompact}, \texttt{PostCompact}, \texttt{FileChanged}, \texttt{CwdChanged}, \texttt{InstructionsLoaded}, \texttt{SessionEnd}.
+
+\subsection{Hook input}
+
+Hook отримує JSON \textbf{на stdin} (не як CLI args):
+
+\begin{lstlisting}
+#!/usr/bin/env bash
+INPUT=$(cat)
+FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path')
+echo "edited: $FILE" >> "${CLAUDE_PLUGIN_DATA}/edits.log"
+\end{lstlisting}
+
+\textbf{Не забудь \texttt{chmod +x}} і shebang.
+
+\section{Plugin path variables}
+
+\begin{tabular}{ll}
+\hline
+\texttt{\$\{CLAUDE\_PLUGIN\_ROOT\}} & абсолютний шлях до cache-копії плагіна \\
+& \emph{змінюється на оновленні; read-only зі сторони plugin-а} \\
+\hline
+\texttt{\$\{CLAUDE\_PLUGIN\_DATA\}} & персистентна тека стану \\
+& \texttt{\textasciitilde/.claude/plugins/data/<id>/} \\
+& \emph{виживає update; для логів, кешів, node\_modules} \\
+\hline
+\end{tabular}
+
+Обидва доступні: inline у skill/agent content, у hook commands, у monitor commands, у MCP/LSP configs. Експортуються як env vars у subprocesses.
+
+\section{Versioning}
+
+\subsection{Resolution order}
+
+Перше, що знайшлось:
+
+\begin{enumerate}
+\item \texttt{version} у \texttt{plugin.json}
+\item \texttt{version} у marketplace entry
+\item Git commit SHA (для \texttt{github}, \texttt{url}, \texttt{git-subdir}, relative path у git-hosted marketplace)
+\item \texttt{unknown} (для npm sources або local-dirs не у git)
+\end{enumerate}
+
+\subsection{Дві стратегії}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Стратегія} & \textbf{Як} & \textbf{Update behavior} \\
+\hline
+Explicit semver & \texttt{"version": "2.1.0"} & Юзери оновлюються лише при bump-і \\
+Commit-SHA & Опустити \texttt{version} & Кожен новий commit = нова версія \\
+\hline
+\end{tabular}
+
+\textbf{Pitfall:} \texttt{version} у двох місцях (\texttt{plugin.json} і marketplace entry) --- \texttt{plugin.json} silently виграє. Лиши одне.
+
+\textbf{Release channels:} два marketplaces на той самий repo з різними \texttt{ref}. Кожен мусить резолвитись у різну версію --- інакше Claude Code вважає однаковими і пропускає update.
+
+\section{Marketplace}
+
+\subsection{Структура}
+
+\begin{lstlisting}
+my-marketplace/
+|-- .claude-plugin/
+|   `-- marketplace.json
+`-- plugins/
+    `-- git-toolkit/
+        |-- .claude-plugin/plugin.json
+        |-- skills/, commands/, agents/, hooks/, scripts/
+        `-- ...
+\end{lstlisting}
+
+\subsection{\texttt{marketplace.json} schema}
+
+\textbf{Required:}
+
+\begin{lstlisting}
+{
+  "name": "vcdev-marketplace",     // kebab-case, public-facing
+  "owner": { "name": "..." },      // email optional
+  "plugins": [
+    {
+      "name": "git-toolkit",       // kebab-case
+      "source": "./plugins/git-toolkit"  // or object (see below)
+    }
+  ]
+}
+\end{lstlisting}
+
+\textbf{Optional metadata:}
+
+\begin{lstlisting}
+{
+  "metadata": {
+    "description": "...",
+    "version": "1.0.0",
+    "pluginRoot": "./plugins"   // prefix for relative sources
+  },
+  "allowCrossMarketplaceDependenciesOn": ["other-marketplace"]
+}
+\end{lstlisting}
+
+\textbf{Reserved \texttt{name}-и (заборонено):}
+
+\texttt{claude-code-marketplace}, \texttt{claude-code-plugins}, \texttt{claude-plugins-official}, \texttt{anthropic-marketplace}, \texttt{anthropic-plugins}, \texttt{agent-skills}, \texttt{knowledge-work-plugins}, \texttt{life-sciences}.
+
+\subsection{Plugin sources}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Source} & \textbf{Приклад} \\
+\hline
+Relative & \texttt{"./plugins/git-toolkit"} \\
+GitHub & \texttt{\{ "source": "github", "repo": "owner/repo", "ref"?, "sha"? \}} \\
+Git URL & \texttt{\{ "source": "url", "url": "...", "ref"?, "sha"? \}} \\
+Git subdir & \texttt{\{ "source": "git-subdir", "url": "...", "path": "...", "ref"? \}} \\
+npm & \texttt{\{ "source": "npm", "package": "@org/x", "version"? \}} \\
+\hline
+\end{tabular}
+
+\textbf{Pitfall:} relative-path source + marketplace додано через raw URL до \texttt{marketplace.json} --- не спрацює (тільки JSON downloaded, repo --- ні). Use \texttt{github}/\texttt{url}/\texttt{git-subdir}/\texttt{npm}.
+
+\section{Installation scopes}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Scope} & \textbf{Settings file} & \textbf{Use case} \\
+\hline
+\texttt{user} & \texttt{\textasciitilde/.claude/settings.json} & Особисто, всі проєкти (default) \\
+\texttt{project} & \texttt{.claude/settings.json} & Команді через git \\
+\texttt{local} & \texttt{.claude/settings.local.json} & Особисто у проєкті, gitignored \\
+\texttt{managed} & Managed settings & Org-адміни, read-only \\
+\hline
+\end{tabular}
+
+\section{CLI команди}
+
+\subsection{Plugin management}
+
+\begin{lstlisting}
+claude --plugin-dir ./my-plugin           # local dev (single session)
+claude plugin install <name>@<marketplace> [--scope user|project|local]
+claude plugin uninstall <name> [--keep-data]
+claude plugin enable <name> / plugin disable <name>
+claude plugin update <name>
+claude plugin list [--json] [--available]
+claude plugin validate .                  # check JSON + frontmatter
+claude plugin tag [--push] [--dry-run]    # release git tag
+\end{lstlisting}
+
+\subsection{Marketplace management}
+
+\begin{lstlisting}
+claude plugin marketplace add <source> [--scope ...] [--sparse paths...]
+claude plugin marketplace list
+claude plugin marketplace remove <name>
+claude plugin marketplace update [name]
+\end{lstlisting}
+
+В інтерактивній сесії --- ті самі через \texttt{/plugin marketplace add}, \texttt{/plugin install}, \texttt{/plugin validate}, \texttt{/reload-plugins}.
+
+\section{Pitfalls --- 10 граблів}
+
+\begin{enumerate}
+\item Компоненти всередині \texttt{.claude-plugin/} --- мають бути на root.
+\item Set \texttt{version} і не bump-нути --- юзери не отримують update.
+\item Version у двох місцях (\texttt{plugin.json} + marketplace entry) --- \texttt{plugin.json} виграє.
+\item Hard-coded paths замість \texttt{\$\{CLAUDE\_PLUGIN\_ROOT\}} --- silent fail після install.
+\item Path-traversal \texttt{../shared-utils} --- не копіюється у cache.
+\item Hook script не executable --- \texttt{chmod +x} + shebang.
+\item Marketplace через raw URL + relative-path source --- репо не клонується.
+\item Plugin agent з \texttt{hooks}/\texttt{mcpServers}/\texttt{permissionMode} --- silently rejected.
+\item Marketplace \texttt{name} --- reserved (\texttt{claude-plugins-official} etc.).
+\item Plugin не з'являється --- спершу \texttt{claude plugin validate .}, потім \texttt{claude --debug}.
+\end{enumerate}
+
+\section{Production-чек-ліст}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{name} kebab-case, не reserved
+\item[$\square$] \texttt{description}, \texttt{author}, \texttt{license} заповнені
+\item[$\square$] Стратегія \texttt{version} обрана: explicit АБО omit
+\item[$\square$] \texttt{.claude-plugin/} містить ТІЛЬКИ \texttt{plugin.json}
+\item[$\square$] \texttt{\$\{CLAUDE\_PLUGIN\_ROOT\}} у hook commands і MCP/LSP configs
+\item[$\square$] \texttt{\$\{CLAUDE\_PLUGIN\_DATA\}} для логів, кешів, state
+\item[$\square$] \texttt{chmod +x} + shebang на hook scripts
+\item[$\square$] Жодного \texttt{..} у paths
+\item[$\square$] \texttt{README.md} --- install instructions
+\item[$\square$] \texttt{claude plugin validate .} проходить
+\item[$\square$] Тестовано через marketplace flow, не лише \texttt{--plugin-dir}
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- ініціалізація}
+
+\begin{lstlisting}
+mkdir -p git-toolkit/.claude-plugin
+mkdir -p git-toolkit/{skills,commands,agents,hooks}
+# create plugin.json with name, version, description, author
+claude plugin validate ./git-toolkit
+claude --plugin-dir ./git-toolkit
+\end{lstlisting}
+
+\subsection{Вправа 2 --- multi-component}
+
+\begin{lstlisting}
+# skill (directory with SKILL.md)
+mkdir -p git-toolkit/skills/status-summary
+# command (flat .md)
+# agent (flat .md with tools/model)
+claude plugin validate ./git-toolkit
+\end{lstlisting}
+
+\subsection{Вправа 3 --- hook}
+
+\begin{lstlisting}
+# hooks/hooks.json: PostToolUse(Write|Edit) -> ${CLAUDE_PLUGIN_ROOT}/scripts/log-edit.sh
+# script appends to ${CLAUDE_PLUGIN_DATA}/edits.log
+chmod +x git-toolkit/scripts/log-edit.sh
+\end{lstlisting}
+
+\subsection{Вправа 4 --- marketplace}
+
+\begin{lstlisting}
+# vcdev-marketplace/.claude-plugin/marketplace.json
+mv git-toolkit vcdev-marketplace/plugins/
+claude plugin validate ./vcdev-marketplace
+# in session:
+/plugin marketplace add ./vcdev-marketplace
+/plugin install git-toolkit@vcdev-marketplace
+/git-toolkit:status-summary
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/plugins}{code.claude.com/docs/en/plugins} --- Create plugins
+\item \href{https://code.claude.com/docs/en/plugin-marketplaces}{code.claude.com/docs/en/plugin-marketplaces} --- Marketplaces
+\item \href{https://code.claude.com/docs/en/plugins-reference}{code.claude.com/docs/en/plugins-reference} --- Complete reference
+\item \href{https://code.claude.com/docs/en/skills}{code.claude.com/docs/en/skills} --- Skills (workshop 04)
+\item Цей репо: \texttt{workshops/06-plugins/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

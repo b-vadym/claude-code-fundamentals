@@ -1,0 +1,41 @@
+{
+  "title": "Workshop 06 — Plugins: глибоке занурення в авторство",
+  "branch": "extending",
+  "duration_minutes": 90,
+  "slides_count": 36,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений (бажано v2.1+)",
+    "Workshop 04 (Skills) пройдено або еквівалентний рівень",
+    "git, термінал, ~/.claude/ доступ"
+  ],
+  "learning_objectives": [
+    "Згенерувати plugin.json з повним маніфестом за специфікацією docs",
+    "Запакувати skill + command + hook + agent в один плагін",
+    "Налаштувати hooks/hooks.json з ${CLAUDE_PLUGIN_ROOT} та запустити PostToolUse-логування",
+    "Створити marketplace.json і встановити плагін через /plugin install <name>@<marketplace>",
+    "Свідомо обрати між explicit semver і commit-SHA versioning"
+  ],
+  "topics": [
+    "plugin.json schema (повний reference)",
+    ".claude-plugin/ vs plugin root layout",
+    "Multi-component bundling (skills + commands + hooks + agents)",
+    "hooks/hooks.json format і ${CLAUDE_PLUGIN_ROOT}",
+    "marketplace.json schema і plugin sources (github/url/git-subdir/npm)",
+    "Versioning strategy і release channels",
+    "Namespaced invocation",
+    "Installation scopes (user/project/local/managed)",
+    "Common pitfalls + claude plugin validate"
+  ],
+  "deliverables": [
+    "slides.md (~36 слайдів)",
+    "exercises/ (4 вправи + solutions/)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/plugins",
+    "https://code.claude.com/docs/en/plugin-marketplaces",
+    "https://code.claude.com/docs/en/plugins-reference"
+  ]
+}

@@ -28,6 +28,20 @@
     "out": "dist/04-skills"
   },
   {
+    "dir": "05-hooks",
+    "title": "Workshop 05 — Hooks: lifecycle deep dive",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/05-hooks/",
+    "out": "dist/05-hooks"
+  },
+  {
+    "dir": "06-plugins",
+    "title": "Workshop 06 — Plugins: глибоке занурення в авторство",
+    "branch": "extending",
+    "base": "/claude-code-fundamentals/06-plugins/",
+    "out": "dist/06-plugins"
+  },
+  {
     "dir": "07-mcp-servers",
     "title": "Workshop 07 — MCP-сервери: будуємо свій на Python",
     "branch": "extending",
@@ -35,10 +49,24 @@
     "out": "dist/07-mcp-servers"
   },
   {
+    "dir": "08-headless-ci",
+    "title": "Workshop 08 — Headless / CI/CD",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/08-headless-ci/",
+    "out": "dist/08-headless-ci"
+  },
+  {
     "dir": "09-agent-sdk",
     "title": "Workshop 09 — Agent SDK: будуємо власного асистента",
     "branch": "production",
     "base": "/claude-code-fundamentals/09-agent-sdk/",
     "out": "dist/09-agent-sdk"
+  },
+  {
+    "dir": "10-subagents-and-teams",
+    "title": "Workshop 10 — Subagents та команди агентів",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/10-subagents-and-teams/",
+    "out": "dist/10-subagents-and-teams"
   }
 ]

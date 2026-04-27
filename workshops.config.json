@@ -19,5 +19,12 @@
     "branch": "extending",
     "base": "/claude-code-fundamentals/04-skills/",
     "out": "dist/04-skills"
+  },
+  {
+    "dir": "12-debugging",
+    "title": "Workshop 12 — Debugging Claude Code: коли ламається",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/12-debugging/",
+    "out": "dist/12-debugging"
   }
 ]

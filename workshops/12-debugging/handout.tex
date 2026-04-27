@@ -1,0 +1,450 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 12 --- Debugging Claude Code: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 12 --- Debugging}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{json}{
+    keywords={true,false,null},
+    sensitive=false,
+    morestring=[b]",
+    morecomment=[l]{//}
+}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 12: Debugging Claude Code}\\[0.6em]
+  {\large Коли ламається --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Не повторює слайди --- сухе зведення команд, схем, чек-листів і jq-запитів. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/troubleshooting}{code.claude.com/docs/en/troubleshooting}, \href{https://code.claude.com/docs/en/debug-your-config}{debug-your-config}, \href{https://code.claude.com/docs/en/hooks}{hooks}, \href{https://code.claude.com/docs/en/skills}{skills}, \href{https://code.claude.com/docs/en/mcp}{mcp}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Diagnostic surface}
+
+8 команд, які показують, що насправді завантажилось у поточну сесію.
+
+\begin{tabular}{ll}
+\hline
+\textbf{Команда} & \textbf{Що показує} \\
+\hline
+\texttt{/context} & Усе у контекстному вікні (system, memory, skills, MCP) \\
+\texttt{/doctor} & Конфіг-валідація: invalid keys, schema errors \\
+\texttt{/status} & Активні settings sources, auth method \\
+\texttt{/memory} & Завантажені CLAUDE.md / rules \\
+\texttt{/skills} & Available skills + source \\
+\texttt{/hooks} & Зареєстровані hooks за event \\
+\texttt{/mcp} & MCP-сервери: connection status, tools \\
+\texttt{/permissions} & Resolved allow/deny rules \\
+\hline
+\end{tabular}
+
+\textbf{Порядок дій:} \texttt{/context} $\to$ конкретна команда $\to$ \texttt{--debug <category>} якщо неясно.
+
+\section{Hook debugging}
+
+\subsection{Exit codes}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Code} & \textbf{Поведінка} & \textbf{JSON оброблюється?} \\
+\hline
+0 & Success --- дія дозволена & Так (stdout як decision) \\
+2 & \textbf{Blocking} --- дія заблокована, stderr $\to$ Claude & Ні \\
+Інше & Non-blocking --- дія проходить, перший рядок stderr $\to$ юзеру & Ні \\
+\hline
+\end{tabular}
+
+\textbf{Pitfall:} \texttt{exit 1} НЕ блокує. Це non-blocking error. Для блокування --- \texttt{exit 2}.
+
+\subsection{Exit 2 ефекти за event}
+
+\begin{lstlisting}
+PreToolUse              -> блокує tool call
+UserPromptSubmit        -> блокує prompt, стирає з контексту
+UserPromptExpansion     -> блокує expansion
+PermissionRequest       -> denies permission
+Stop                    -> не дає Claude зупинитись
+WorktreeCreate          -> non-zero валить creation
+\end{lstlisting}
+
+PostToolUse, SessionEnd --- exit 2 лише показує stderr юзеру, заблокувати не може (дія вже сталась).
+
+\subsection{Stderr/stdout}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Сценарій} & \textbf{Куди йде} \\
+\hline
+Exit 0, plain text stdout & Debug log only (НЕ transcript) \\
+Exit 0, JSON stdout & Парситься як decision \\
+Exit 2, stderr & \textbf{Claude бачить} як error \\
+Exit 1+, stderr & Перший рядок $\to$ transcript, повний $\to$ debug log \\
+\hline
+\end{tabular}
+
+3 події що ВКИДАЮТЬ stdout у контекст: \texttt{SessionStart}, \texttt{UserPromptSubmit}, \texttt{UserPromptExpansion}. Cap: \textbf{10,000 символів}.
+
+\subsection{JSON output schema}
+
+Universal fields (для всіх events):
+
+\begin{lstlisting}[language=json]
+{
+  "continue": true,
+  "stopReason": "Build failed",
+  "suppressOutput": false,
+  "systemMessage": "Warning to user"
+}
+\end{lstlisting}
+
+PreToolUse hookSpecificOutput:
+
+\begin{lstlisting}[language=json]
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask|defer",
+    "permissionDecisionReason": "reason text",
+    "updatedInput": { "command": "..." },
+    "additionalContext": "context for Claude"
+  }
+}
+\end{lstlisting}
+
+\subsection{\texttt{/hooks} і \texttt{--debug hooks}}
+
+\textbf{\texttt{/hooks}} --- список усіх зареєстрованих hooks за event. Якщо твого нема:
+
+\begin{itemize}
+\item \texttt{matcher} --- JSON array замість string. Має бути \texttt{"Edit\textbar{}Write"}, не \texttt{["Edit", "Write"]}
+\item \texttt{matcher} --- lowercase. Case-sensitive: \texttt{Bash}, \texttt{Edit}, \texttt{Write}, \texttt{Read}
+\item Конфіг у \texttt{.claude/hooks.json} (нема такого файлу) $\to$ перенеси у \texttt{settings.json}, ключ \texttt{"hooks"}
+\item Schema error $\to$ \texttt{/doctor} репортує, entry дропається тихо
+\end{itemize}
+
+\textbf{\texttt{claude --debug hooks}} --- live-трасування подій:
+
+\begin{itemize}
+\item Кожен event evaluated
+\item Які matchers перевірились
+\item Hook exit code
+\item Повний output (не лише перший рядок stderr)
+\end{itemize}
+
+\subsection{Pitfall: shell profile pollution}
+
+stdout мусить мати ТІЛЬКИ JSON. Якщо \texttt{\textasciitilde/.bashrc} echo-ить welcome --- JSON не запарситься.
+
+\begin{lstlisting}[language=bash]
+#!/bin/bash
+exec 2>/dev/null
+source ~/.profile
+exec 2>&1
+jq -n '{ "continue": true }'
+\end{lstlisting}
+
+\section{Skill debugging --- 6-крокова перевірка}
+
+\begin{enumerate}
+\item \textbf{\texttt{/}-меню видно skill?} Ні $\to$ перевір шлях \texttt{\textasciitilde/.claude/skills/<name>/SKILL.md}.
+\item \textbf{Перефразуй точно під description.} Спрацювало $\to$ tuning description.
+\item \textbf{Грепни \texttt{disable-model-invocation} / \texttt{user-invocable}}.
+\item \textbf{Перевір \texttt{paths}} --- може skill активується лише на матчинг файлах.
+\item \textbf{Manual \texttt{/skill-name} працює?} Так $\to$ skill loaded, проблема matching.
+\item \textbf{Запит надто простий?} Claude не тригерить skill для тривіальних задач (\textit{by design}).
+\end{enumerate}
+
+\subsection{Description budget}
+
+$\sim$1\% контекстного вікна $=$ $\sim$8K символів за замовчуванням. Cap per entry: \textbf{1,536 символів}. Багато skill-ів $\to$ описи обрізаються.
+
+\textbf{Підняти:} \texttt{SLASH\_COMMAND\_TOOL\_CHAR\_BUDGET=16000}
+
+\subsection{Lifecycle після compaction}
+
+\begin{itemize}
+\item Most recent invocation кожного skill-а --- preserved
+\item Перших 5,000 токенів кожного збережено
+\item Сумарний бюджет: \textbf{25,000 токенів}
+\item Старіші invocation-и можуть дропнутись повністю
+\end{itemize}
+
+\textbf{Mitigation:} re-invoke skill якщо «забувся».
+
+\section{MCP debugging}
+
+\subsection{\texttt{/mcp} статуси}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Статус} & \textbf{Що означає} \\
+\hline
+\texttt{connected} & Сервер працює, tools доступні \\
+\texttt{pending approval} & \texttt{.mcp.json} сервер чекає approve \\
+\texttt{failed} & Стартував і помер. Зазвичай: relative path \\
+\texttt{reconnecting} & HTTP/SSE розрив, exp backoff (5 спроб) \\
+\texttt{connected (0 tools)} & Стартував, але tools/list порожній \\
+\hline
+\end{tabular}
+
+\subsection{\texttt{.mcp.json} schema}
+
+Лежить у \textbf{корені проєкту} (НЕ у \texttt{.claude/}).
+
+\begin{lstlisting}[language=json]
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "${GH_TOKEN}" }
+    },
+    "api": {
+      "type": "http",
+      "url": "${API_BASE_URL:-https://api.example.com}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_KEY}"
+      }
+    }
+  }
+}
+\end{lstlisting}
+
+\textbf{Env expansion:} \texttt{\$\{VAR\}}, \texttt{\$\{VAR:-default\}}. Required без default $\to$ fail to parse.
+
+\subsection{Топ-5 фейлів}
+
+\begin{tabular}{p{5cm}p{4cm}p{5cm}}
+\hline
+\textbf{Симптом} & \textbf{Причина} & \textbf{Фікс} \\
+\hline
+\texttt{.mcp.json} ігнорується & Файл у \texttt{.claude/} & Корінь проєкту \\
+Сервер не з'являється & Approval prompt dismissed & \texttt{/mcp} $\to$ Approve \\
+Fail у деяких теках & Relative path & Абсолютний шлях \\
+Env vars missing & Vars у \texttt{settings.json} & Per-server \texttt{env} у \texttt{.mcp.json} \\
+\texttt{Failed to parse config} & Required \texttt{\$\{VAR\}} not set & Set env або \texttt{\$\{VAR:-default\}} \\
+\hline
+\end{tabular}
+
+\subsection{\texttt{claude --debug mcp}}
+
+Логує: handshake (\texttt{initialize}, \texttt{initialized}), сервер stderr, \texttt{tools/list} response, reconnect attempts.
+
+\subsection{Транспорти}
+
+\begin{itemize}
+\item \textbf{stdio} --- локальний процес. Не auto-reconnect.
+\item \textbf{HTTP} --- recommended для remote. Auto-reconnect: 5 спроб, 1s$\to$2s$\to$4s$\to$8s$\to$16s.
+\item \textbf{SSE} --- DEPRECATED. Use HTTP instead.
+\end{itemize}
+
+\subsection{OAuth pitfalls}
+
+\begin{itemize}
+\item \emph{Incompatible auth server: does not support dynamic client registration} $\to$ зареєструй OAuth-app вручну, подай creds у \texttt{claude mcp add}
+\item Browser redirect failed $\to$ скопіюй callback URL, встав у CC prompt
+\item Internal SSO/Kerberos/short-lived $\to$ \texttt{headersHelper} у \texttt{.mcp.json}
+\end{itemize}
+
+\section{Session transcripts}
+
+\subsection{Локація}
+
+\begin{lstlisting}
+~/.claude/projects/<project-slug>/<session-id>.jsonl
+\end{lstlisting}
+
+\texttt{<project-slug>} --- sanitized cwd path (наприклад \texttt{-home-vadym-projects-foo}).
+
+Кожен рядок --- JSON event сесії: user prompts, assistant responses, tool calls/results, hook outputs, system messages, compact boundaries.
+
+\textbf{Caveat:} формальна schema не задокументована. Поля (\texttt{.type}, \texttt{.message.content}, \texttt{.subtype}) спостережено в реальних transcripts але не у specs.
+
+\subsection{jq queries --- основні}
+
+\begin{lstlisting}[language=bash]
+# Скільки events
+wc -l session.jsonl
+
+# Які типи зустрічаються
+jq -r '.type' session.jsonl | sort -u
+
+# Усі user prompts
+jq 'select(.type == "user") | .message.content' session.jsonl
+
+# Усі tool calls
+jq 'select(.type == "assistant") | .message.content[]?
+    | select(.type == "tool_use")' session.jsonl
+
+# Compaction boundaries
+jq 'select(.type == "system" and .subtype == "compact_boundary")' session.jsonl
+
+# Hook outputs
+jq 'select(.type == "system" and ((.subtype // "") | startswith("hook_")))' session.jsonl
+
+# Останні N events
+tail -10 session.jsonl | jq .
+\end{lstlisting}
+
+\section{Auto-compaction}
+
+\subsection{Preserved}
+
+\begin{itemize}
+\item Сесійний summary (Claude-generated)
+\item Останні N turn-ів verbatim
+\item System prompt + memory --- re-injected fresh
+\item Skills --- most recent each, first 5K tokens, $\Sigma$ 25K budget
+\end{itemize}
+
+\subsection{Lost}
+
+\begin{itemize}
+\item Старі tool outputs verbatim
+\item Earlier file reads (тільки summary references)
+\item Skills не invoked недавно АБО витіснені 25K-бюджетом
+\item Детальні code chunks середини сесії
+\end{itemize}
+
+\subsection{Mitigation --- 5 тактик}
+
+\begin{enumerate}
+\item Re-invoke skill (контент завантажиться знову)
+\item \texttt{/recap} (silent injection) перед заповненням контексту
+\item Subagents (\texttt{context: fork} у skill)
+\item \texttt{/compact <focus>} з directive (наприклад «keep only the plan»)
+\item \texttt{/clear} якщо стара частина не потрібна
+\end{enumerate}
+
+\subsection{Autocompact thrashing}
+
+Симптом: \texttt{Autocompact is thrashing: the context refilled to the limit}. Файл/tool output постійно перезаповнює контекст.
+
+\textbf{Фікс:} читай файл chunks, drop large output, або \texttt{/clear}.
+
+\section{Common errors}
+
+\begin{tabular}{p{5cm}p{4.5cm}p{4.5cm}}
+\hline
+\textbf{Error} & \textbf{Причина} & \textbf{Фікс} \\
+\hline
+Hook exited code 1 (не блокує) & exit 1 замість 2 & \texttt{exit 2} \\
+Hook JSON parse error & non-JSON у stdout & \texttt{exec 2>/dev/null} \\
+Skill not found & flat \texttt{.md} замість теки & \texttt{<name>/SKILL.md} \\
+MCP failed to start & relative path / no exec & абсолютний шлях; \texttt{--debug mcp} \\
+MCP: Connection refused & endpoint мертвий / stdio process помер & test endpoint \\
+Autocompact is thrashing & файл reflood-ить контекст & chunks; \texttt{/compact}; \texttt{/clear} \\
+\texttt{spawn claude ENOENT} (CC як MCP) & Wrong path до \texttt{claude} & абсолютний шлях у \texttt{command} \\
+\hline
+\end{tabular}
+
+\section{Production debug-checklist}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{/doctor} --- перевір спочатку
+\item[$\square$] \texttt{/context} --- що завантажилось у window
+\item[$\square$] \texttt{/hooks} / \texttt{/skills} / \texttt{/mcp} --- конкретний компонент
+\item[$\square$] Перевір scope precedence: managed $>$ user $>$ project $>$ local
+\item[$\square$] \texttt{--debug <category>} у нову сесію
+\item[$\square$] Transcript: \texttt{\textasciitilde/.claude/projects/<slug>/*.jsonl} через jq
+\item[$\square$] Re-invoke skill якщо post-compaction
+\item[$\square$] Restart CC для нових тек skill / новий plugin
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Вправа 1 --- broken hook}
+
+\begin{lstlisting}[language=bash]
+mkdir -p /tmp/hook-debug && cd /tmp/hook-debug
+mkdir -p .claude
+cp <starter>/settings.json .claude/settings.json
+cp <starter>/block-rm.sh .claude/block-rm.sh
+chmod +x .claude/block-rm.sh
+claude --debug hooks
+\end{lstlisting}
+
+\subsection{Вправа 3 --- broken \texttt{.mcp.json}}
+
+\begin{lstlisting}[language=bash]
+mkdir -p /tmp/mcp-debug && cd /tmp/mcp-debug
+cp <starter>/.mcp.json .
+cp <starter>/echo-server.py .
+chmod +x echo-server.py
+claude --debug mcp
+\end{lstlisting}
+
+\subsection{Вправа 4 --- transcript jq}
+
+\begin{lstlisting}[language=bash]
+cd 04-transcript-jq
+bash ../solutions/04-transcript-jq/queries.sh starter/session.jsonl
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/troubleshooting}{code.claude.com/docs/en/troubleshooting} --- install/auth/perf/IDE
+\item \href{https://code.claude.com/docs/en/debug-your-config}{code.claude.com/docs/en/debug-your-config} --- \texttt{/context}, \texttt{/doctor}, common-cause table
+\item \href{https://code.claude.com/docs/en/hooks}{code.claude.com/docs/en/hooks} --- exit codes, JSON schema, \texttt{--debug hooks}
+\item \href{https://code.claude.com/docs/en/skills}{code.claude.com/docs/en/skills} --- troubleshooting, lifecycle, budget
+\item \href{https://code.claude.com/docs/en/mcp}{code.claude.com/docs/en/mcp} --- \texttt{.mcp.json}, transports, OAuth
+\item Цей репо: \texttt{workshops/12-debugging/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

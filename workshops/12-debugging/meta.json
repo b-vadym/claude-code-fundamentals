@@ -1,0 +1,42 @@
+{
+  "title": "Workshop 12 — Debugging Claude Code: коли ламається",
+  "branch": "production",
+  "duration_minutes": 90,
+  "slides_count": 36,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "Базове знання hooks, skills, MCP (workshops 03-07)",
+    "jq встановлений (`brew install jq` / `apt install jq`)"
+  ],
+  "learning_objectives": [
+    "Знати канонічні exit codes для hooks (0/2/інше) і коли який юзати",
+    "Прочитати JSON-вивід hook-у і зрозуміти що зламалося",
+    "Пройти 6-крокову діагностику skill-а який не тригериться",
+    "Дебажити MCP-сервер який не стартує або дає 0 tools",
+    "Знайти і прочитати session transcript через jq",
+    "Розуміти що губиться при auto-compaction і як це митигейтити"
+  ],
+  "topics": [
+    "Diagnostic surface: /doctor, /context, /hooks, /mcp, /memory, /skills",
+    "Hook debugging: exit codes, stderr, JSON schema, --debug hooks",
+    "Skill debugging: 6-step checklist, description budget, lifecycle",
+    "MCP debugging: .mcp.json schema, transports, /mcp, --debug mcp",
+    "Session transcripts: ~/.claude/projects/, JSONL, jq queries",
+    "Auto-compaction: what's preserved, what's lost, mitigation",
+    "Common error messages catalog"
+  ],
+  "deliverables": [
+    "slides.md (~36 слайдів)",
+    "exercises/ (4 вправи з broken-on-purpose стартерами)",
+    "handout.tex (LaTeX → PDF референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/troubleshooting",
+    "https://code.claude.com/docs/en/debug-your-config",
+    "https://code.claude.com/docs/en/hooks",
+    "https://code.claude.com/docs/en/skills",
+    "https://code.claude.com/docs/en/mcp"
+  ]
+}

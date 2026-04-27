@@ -68,5 +68,19 @@
     "branch": "production",
     "base": "/claude-code-fundamentals/10-subagents-and-teams/",
     "out": "dist/10-subagents-and-teams"
+  },
+  {
+    "dir": "11-security",
+    "title": "Workshop 11 — Security & Sandboxing: захист по шарах",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/11-security/",
+    "out": "dist/11-security"
+  },
+  {
+    "dir": "12-debugging",
+    "title": "Workshop 12 — Debugging Claude Code: коли ламається",
+    "branch": "production",
+    "base": "/claude-code-fundamentals/12-debugging/",
+    "out": "dist/12-debugging"
   }
 ]

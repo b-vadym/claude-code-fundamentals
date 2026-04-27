@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "echo-server": {
+      "command": "python3",
+      "args": ["${PWD}/echo-server.py"],
+      "env": {
+        "MCP_GREETING": "${ECHO_GREETING:-hello}"
+      }
+    }
+  }
+}

@@ -828,7 +828,7 @@ exit 0
 <DocRef url="https://code.claude.com/docs/en/hooks" label="code.claude.com — Hooks" />
 
 <!--
-Hook = code execution на кожний tool call. Тримай швидким (<5с timeout). Парсити JSON через jq — must.
+Hook = code execution на кожний tool call. Тримай швидким (до 5с timeout). Парсити JSON через jq — must.
 -->
 
 ---
@@ -1032,8 +1032,6 @@ git push --force-with-lease origin main
 <v-clicks>
 
 ⚠️ **НЕ йде на компроміс із кроком 1.** `filter-repo` прибирає з historії, але вже push-нутий ключ міг бути scrap-нутий ботом. Rotate first, then clean.
-
-</v-click>
 
 </v-clicks>
 
@@ -1566,7 +1564,7 @@ CI зазвичай вже ізольоване — Docker, single-job. Sandbox 
 
 **Що зберегти:**
 
-- Транскрипт `~/.claude/projects/<project>/<session>.jsonl` — це твій `dmesg`
+- Транскрипт `~/.claude/projects/{project}/{session}.jsonl` — це твій `dmesg`
 - `settings.json` snapshot — що було allow-нуто на момент інциденту
 - Hook logs (якщо налаштовані)
 

@@ -1,0 +1,29 @@
+{
+  "name": "claude-code-sandbox",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // TODO 3: add NET_ADMIN and NET_RAW capabilities for iptables
+  // "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+
+  // TODO 4: persist ~/.claude and shell history across container rebuilds
+  // "mounts": [
+  //   "source=claude-code-bashhistory,target=/commandhistory,type=volume",
+  //   "source=claude-code-config,target=/home/node/.claude,type=volume"
+  // ],
+
+  // TODO 5: run firewall init after container starts
+  // "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh",
+
+  "remoteUser": "node",
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  }
+}

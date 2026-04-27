@@ -1,0 +1,216 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 11 — Security \& Sandboxing: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 11 — Security \& Sandboxing}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me · 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 11: Security \& Sandboxing}\\[0.6em]
+  {\large Захист по шарах --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс. Defensive security: пермішени, sandbox, devcontainer, секрети, audit, supply-chain. Усі факти посилаються на офіційні docs (\href{https://code.claude.com/docs/en/security}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Defense in depth: 3 шари}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Шар} & \textbf{Що робить} & \textbf{Де налаштовується} \\
+\hline
+Permissions & allow/deny patterns на tool-calls & \texttt{settings.json} \texttt{permissions} \\
+Sandbox & fs+network ізоляція & Seatbelt/bubblewrap, \texttt{/sandbox} \\
+Hooks & last-resort guards (PreToolUse blocks) & \texttt{settings.json} \texttt{hooks} \\
+\hline
+\end{tabular}
+
+Композиція важлива: один шар обходять, інші ловлять.
+
+\section{Settings.json: permissions precedence}
+
+\begin{enumerate}
+\item Enterprise (managed)
+\item Personal \texttt{\textasciitilde/.claude/settings.json}
+\item Project \texttt{.claude/settings.json}
+\item Local override \texttt{.claude/settings.local.json}
+\end{enumerate}
+
+Deny завжди виграє над allow на тому ж рівні.
+
+\subsection{Patterns}
+
+\begin{lstlisting}
+{
+  "permissions": {
+    "allow": ["Bash(git *)", "Read", "Write"],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(curl * | sh)",
+      "Bash(kubectl delete *)",
+      "Write(.env*)"
+    ]
+  }
+}
+\end{lstlisting}
+
+\textbf{Gotchas:}
+
+\begin{itemize}
+\item Compound commands (\texttt{rm -rf / ; whatever}) обходять прості matchers --- використай regex
+\item \texttt{curl ... | sh} --- очевидний вектор; додай у deny
+\item Wrappers (\texttt{sudo rm}, \texttt{xargs rm}) --- треба окрема pattern
+\end{itemize}
+
+\section{Sandboxing}
+
+\textbf{macOS:} Seatbelt (sandbox-exec). \textbf{Linux:} bubblewrap.
+
+\begin{lstlisting}
+/sandbox enable     # одна сесія
+\end{lstlisting}
+
+Ізолює fs+network. Дозволяє Claude робити будь-що в межах sandbox без ризику для системи.
+
+\textbf{Use case:} expermімент з ризикованим refactor, autonomous mode на чужому проекті.
+
+\section{Devcontainer}
+
+Reference setup: \href{https://code.claude.com/docs/en/devcontainer}{code.claude.com/docs/en/devcontainer}.
+
+\begin{lstlisting}
+// .devcontainer/devcontainer.json
+{
+  "image": "anthropic/claude-code:latest",
+  "postCreateCommand": "./.devcontainer/init-firewall.sh",
+  "remoteUser": "claude"
+}
+\end{lstlisting}
+
+\texttt{init-firewall.sh} --- default-deny outbound, allowlist для Anthropic API + npm registry. Combined з \texttt{--dangerously-skip-permissions} = autonomous mode без ризику.
+
+\section{Secrets}
+
+\textbf{Де НЕ зберігати:}
+
+\begin{itemize}
+\item \texttt{CLAUDE.md} (комітиться в git)
+\item Slide-нотатки
+\item Exercise README-и
+\item Hook-скрипти (стають частиною settings.json)
+\end{itemize}
+
+\textbf{Де зберігати:}
+
+\begin{itemize}
+\item \texttt{.env} (gitignore)
+\item OS keychain через \texttt{apiKeyHelper}
+\item Vault / OIDC для CI
+\end{itemize}
+
+\textbf{Якщо вже залилось у git:}
+
+\begin{lstlisting}
+git filter-repo --path .env --invert-paths
+# rotate скомпрометований ключ
+# force-push з координацією команди
+\end{lstlisting}
+
+\section{Supply-chain risks}
+
+\begin{tabular}{lp{8cm}}
+\hline
+\textbf{Vector} & \textbf{Mitigation} \\
+\hline
+Plugin marketplace & Перевір author, source-code, recent activity, скількість installs \\
+MCP server & Запускається з повними правами Claude Code; vetting обов'язковий \\
+Skill з side-effects & \texttt{disable-model-invocation: true}, manual trigger \\
+Hook scripts & Один \texttt{rm -rf} = катастрофа; пиши defensive shell \\
+\hline
+\end{tabular}
+
+\section{Audit}
+
+\textbf{Транскрипти:} \texttt{\textasciitilde/.claude/projects/<project-slug>/}
+
+\begin{lstlisting}
+# знайти всі bash-виклики за день
+jq 'select(.tool_name == "Bash") | .input.command' \
+  ~/.claude/projects/*/transcripts/*.jsonl
+\end{lstlisting}
+
+\textbf{ConfigChange hook} --- логи зміни settings.json.
+
+\textbf{OpenTelemetry} --- structured monitoring через \href{https://code.claude.com/docs/en/monitoring-usage}{monitoring-usage}.
+
+\section{Чек-ліст hardening}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{permissions.deny} покриває \texttt{rm -rf}, deploy, db writes
+\item[$\square$] \texttt{.env} у \texttt{.gitignore}, secrets не в \texttt{CLAUDE.md}
+\item[$\square$] Devcontainer для autonomous mode
+\item[$\square$] Plugin/MCP vetting перед install
+\item[$\square$] Hook-сценарії як last-resort guards (PreToolUse + dangerous bash)
+\item[$\square$] Audit-pipeline: транскрипти + OTel
+\item[$\square$] API key rotation policy
+\item[$\square$] OIDC / vault для headless CI
+\end{itemize}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://code.claude.com/docs/en/security}{code.claude.com/docs/en/security}
+\item \href{https://code.claude.com/docs/en/sandboxing}{code.claude.com/docs/en/sandboxing}
+\item \href{https://code.claude.com/docs/en/permissions}{code.claude.com/docs/en/permissions}
+\item \href{https://code.claude.com/docs/en/devcontainer}{code.claude.com/docs/en/devcontainer}
+\item \href{https://code.claude.com/docs/en/monitoring-usage}{code.claude.com/docs/en/monitoring-usage}
+\item \texttt{exercises/} і \texttt{solutions/} у цій теці
+\end{itemize}
+
+\end{document}

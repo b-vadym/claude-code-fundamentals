@@ -1,0 +1,383 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[ukrainian,english]{babel}
+\usepackage[top=22mm,bottom=22mm,left=22mm,right=22mm]{geometry}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\tcbuselibrary{skins,breakable}
+
+\hypersetup{
+    pdftitle={Workshop 07 — MCP Servers: Handout},
+    pdfauthor={Vadym Bondarenko},
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{Workshop 07 — MCP Servers}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small\textit{vcdev.me \textperiodcentered{} 2026}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\small,
+    sensitive=true,
+    morestring=[b]",
+    comment=[l]{//},
+}
+
+\lstdefinelanguage{yaml}{
+    keywords={true,false,null},
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]',
+    morestring=[b]"
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    rulecolor=\color{gray!40},
+    xleftmargin=8pt,
+    xrightmargin=8pt,
+    aboveskip=6pt,
+    belowskip=6pt,
+}
+
+\title{%
+  {\Huge\bfseries Workshop 07: MCP-сервери}\\[0.6em]
+  {\large Будуємо свій на Python --- handout}
+}
+\author{Vadym Bondarenko \\ \small\href{mailto:vadym.bondarenko@vcdev.me}{vadym.bondarenko@vcdev.me}}
+\date{2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Пост-воркшоп референс для самостійного перечитування. Не повторює слайди --- сухе зведення команд, API, чек-листів. Усі факти посилаються на офіційні docs (\href{https://modelcontextprotocol.io}{modelcontextprotocol.io}, \href{https://code.claude.com/docs/en/mcp}{code.claude.com}).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Що таке MCP}
+
+Model Context Protocol --- open-source протокол між AI-host-додатком і твоїми тулами/даними. Client--server, JSON-RPC 2.0.
+
+\subsection{Учасники}
+
+\begin{tabular}{ll}
+\hline
+\textbf{Роль} & \textbf{Що} \\
+\hline
+MCP Host & AI-додаток (Claude Code, Claude Desktop, VS Code) \\
+MCP Client & Компонент усередині host, по одному на сервер \\
+MCP Server & Програма, яка експонує контекст / тули \\
+\hline
+\end{tabular}
+
+\textbf{Local server:} STDIO транспорт, subprocess host-а. \textbf{Remote server:} Streamable HTTP, окрема машина.
+
+\subsection{Два рівні}
+
+\begin{itemize}
+\item \textbf{Data layer} --- JSON-RPC 2.0; lifecycle, primitives, notifications. Однаковий для всіх транспортів.
+\item \textbf{Transport layer} --- STDIO або Streamable HTTP. Framing, з'єднання, auth.
+\end{itemize}
+
+\section{Примітиви сервера}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Примітив} & \textbf{Хто викликає} & \textbf{Методи} \\
+\hline
+\texttt{tools} & Модель (з апруву) & \texttt{tools/list}, \texttt{tools/call} \\
+\texttt{resources} & Юзер/host & \texttt{resources/list}, \texttt{resources/read} \\
+\texttt{prompts} & Юзер через slash & \texttt{prompts/list}, \texttt{prompts/get} \\
+\hline
+\end{tabular}
+
+\textbf{Notifications:} сервер може push-ити \texttt{notifications/tools/list\_changed} тощо --- client рефрешить state без запиту.
+
+\section{Python SDK: setup}
+
+\textbf{System requirements:} Python 3.10+, MCP SDK 1.2.0+.
+
+\begin{lstlisting}[language=bash]
+# Встановити uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Створити проєкт
+uv init my-server
+cd my-server
+uv venv
+source .venv/bin/activate
+uv add "mcp[cli]"
+\end{lstlisting}
+
+\section{FastMCP: декоратори}
+
+\subsection{Tool}
+
+\begin{lstlisting}[language=python]
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("name")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers."""
+    return a + b
+\end{lstlisting}
+
+\textbf{Type hints} $\to$ JSON Schema \texttt{inputSchema}. \textbf{Docstring} $\to$ description. Можна \texttt{async def}.
+
+\subsection{Resource}
+
+\begin{lstlisting}[language=python]
+@mcp.resource("file://notes")           # static
+def get_notes() -> str:
+    return open("notes.md").read()
+
+@mcp.resource("file://docs/{name}")     # templated
+def get_doc(name: str) -> str:
+    return open(f"docs/{name}.md").read()
+\end{lstlisting}
+
+\textbf{Static} resources показуються у \texttt{resources/list}. \textbf{Templated} --- ні (бо нескінченно багато), але client може запросити конкретний URI.
+
+\subsection{Prompt}
+
+\begin{lstlisting}[language=python]
+@mcp.prompt(title="Code Review")
+def review_code(code: str) -> str:
+    return f"Please review this code:\n\n{code}"
+
+# З роlями:
+from mcp.server.fastmcp.prompts import base
+
+@mcp.prompt()
+def debug_session(error: str) -> list[base.Message]:
+    return [
+        base.UserMessage("I'm seeing this error:"),
+        base.UserMessage(error),
+    ]
+\end{lstlisting}
+
+\section{Запуск і транспорти}
+
+\subsection{STDIO (default)}
+
+\begin{lstlisting}[language=python]
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+\end{lstlisting}
+
+\textbf{Критично:} жодного \texttt{print()} без \texttt{file=sys.stderr}. Stdout зарезервований для JSON-RPC framing.
+
+\begin{lstlisting}[language=python]
+import sys, logging
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+print("debug", file=sys.stderr)   # OK
+\end{lstlisting}
+
+\subsection{Streamable HTTP}
+
+\begin{lstlisting}[language=python]
+mcp.run(transport="streamable-http")
+# default: http://localhost:8000/mcp
+\end{lstlisting}
+
+\textbf{SSE (deprecated)} --- є для legacy серверів, але не для нових проєктів.
+
+\section{Підключення до Claude Code}
+
+\subsection{CLI: \texttt{claude mcp add}}
+
+\textbf{Правило ordering:} опції (\texttt{--transport}, \texttt{--env}, \texttt{--scope}, \texttt{--header}) йдуть \textbf{до} імені; \texttt{--} відокремлює name від command.
+
+\begin{lstlisting}[language=bash]
+# Local stdio
+claude mcp add --transport stdio --env API_KEY=xxx myserver \
+  -- uv run server.py
+
+# Remote HTTP (Bearer)
+claude mcp add --transport http myserver https://api.example.com/mcp \
+  --header "Authorization: Bearer your-token"
+
+# Remote HTTP (OAuth)
+claude mcp add --transport http myserver https://mcp.notion.com/mcp
+# далі усередині сесії: /mcp -> auth flow
+\end{lstlisting}
+
+\subsection{\texttt{.mcp.json} (project scope)}
+
+\begin{lstlisting}[language=json]
+{
+  "mcpServers": {
+    "my-clock": {
+      "command": "uv",
+      "args": ["--directory", "/abs/path", "run", "server.py"],
+      "env": {"DEBUG": "1"}
+    },
+    "remote-api": {
+      "type": "http",
+      "url": "${API_BASE_URL:-https://api.example.com}/mcp",
+      "headers": {
+        "Authorization": "Bearer ${API_KEY}"
+      }
+    }
+  }
+}
+\end{lstlisting}
+
+Підтримує \texttt{\$\{VAR\}} і \texttt{\$\{VAR:-default\}} у \texttt{command}, \texttt{args}, \texttt{env}, \texttt{url}, \texttt{headers}.
+
+\subsection{Scopes}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Scope} & \textbf{Куди записується} & \textbf{Коли юзати} \\
+\hline
+\texttt{local} (default) & \texttt{\textasciitilde/.claude.json} (current project) & Експерименти \\
+\texttt{project} & \texttt{.mcp.json} у root & Команді через VCS \\
+\texttt{user} & \texttt{\textasciitilde/.claude.json} (всі проєкти) & Особисті утиліти \\
+\hline
+\end{tabular}
+
+\textbf{Precedence:} local $>$ project $>$ user $>$ plugin $>$ claude.ai connectors.
+
+\subsection{Управління}
+
+\begin{lstlisting}[language=bash]
+claude mcp list                    # усі сервери
+claude mcp get <name>              # деталі
+claude mcp remove <name>           # видалити
+claude mcp reset-project-choices   # скинути approval для .mcp.json
+
+# усередині Claude Code:
+/mcp                               # status, OAuth login
+\end{lstlisting}
+
+\section{Auth}
+
+\begin{tabular}{lll}
+\hline
+\textbf{Транспорт} & \textbf{Метод} & \textbf{Як} \\
+\hline
+STDIO & Env-var & \texttt{--env API\_KEY=xxx} \\
+HTTP & Bearer & \texttt{--header "Authorization: Bearer xxx"} \\
+HTTP & API key & \texttt{--header "X-API-Key: xxx"} \\
+HTTP & OAuth 2.0 & \texttt{/mcp} усередині Claude Code \\
+\hline
+\end{tabular}
+
+MCP \textbf{рекомендує OAuth} для HTTP-серверів.
+
+\section{Debug}
+
+\subsection{MCP Inspector}
+
+Інтерактивний UI, без install:
+
+\begin{lstlisting}[language=bash]
+# локальний сервер
+npx @modelcontextprotocol/inspector \
+  uv --directory /path/to/server run server.py
+
+# npm-published
+npx -y @modelcontextprotocol/inspector npx @modelcontextprotocol/server-filesystem /Users/me/Desktop
+
+# PyPI-published
+npx @modelcontextprotocol/inspector uvx mcp-server-git --repository ~/repo
+\end{lstlisting}
+
+\textbf{Вкладки:} Server connection (transport, args, env), Resources, Prompts, Tools, Notifications (stderr-логи).
+
+\subsection{6-крокова діагностика}
+
+\begin{enumerate}
+\item \textbf{\texttt{claude mcp list}} показує сервер?
+\item \textbf{\texttt{/mcp}} у сесії: connected?
+\item \textbf{\texttt{claude mcp get <name>}} $\to$ запусти команду руками, дивись stderr
+\item \textbf{stdout-факап?} \texttt{grep -n 'print(' server.py}
+\item \textbf{Inspector} викликає tool вручну?
+\item \textbf{Schema крива?} Type hints + docstring \texttt{Args:} секція
+\end{enumerate}
+
+\subsection{Reconnect i output limits}
+
+\begin{itemize}
+\item \textbf{HTTP/SSE:} автоматичний reconnect 5 спроб з exponential backoff
+\item \textbf{STDIO:} НЕ reconnect (subprocess) --- перезапусти Claude Code
+\item \textbf{Output warning} при 10K токенів. Підняти: \texttt{MAX\_MCP\_OUTPUT\_TOKENS=50000}
+\item \textbf{Startup timeout:} \texttt{MCP\_TIMEOUT=10000 claude} (мс)
+\end{itemize}
+
+\section{Production-чек-ліст}
+
+\begin{itemize}[leftmargin=2em]
+\item[$\square$] \texttt{FastMCP("name")} kebab-case, унікальне
+\item[$\square$] Type hints + docstring на кожному tool/resource/prompt
+\item[$\square$] \texttt{Args:} секція у docstring (потрапляє у JSON Schema)
+\item[$\square$] stderr-only logging для STDIO; жодного raw \texttt{print(...)}
+\item[$\square$] Env-vars для секретів (не hard-code)
+\item[$\square$] Output trimming для tool-ів з великим output
+\item[$\square$] Тестовано в Inspector --- кожен tool, resource, prompt
+\item[$\square$] README з прикладом \texttt{.mcp.json} і списком env-vars
+\item[$\square$] Версіонування через git tags якщо публічно
+\end{itemize}
+
+\section{Команди для вправ}
+
+\subsection{Setup}
+
+\begin{lstlisting}[language=bash]
+uv venv && source .venv/bin/activate
+uv add "mcp[cli]"
+\end{lstlisting}
+
+\subsection{Inspector}
+
+\begin{lstlisting}[language=bash]
+npx @modelcontextprotocol/inspector uv run server.py
+\end{lstlisting}
+
+\subsection{Підключення до Claude Code (вправа 4)}
+
+\begin{lstlisting}[language=bash]
+claude mcp add --scope user --transport stdio my-clock \
+  -- uv --directory $(pwd) run server.py
+
+claude mcp list
+claude
+# усередині сесії:
+/mcp
+\end{lstlisting}
+
+\section{Resources}
+
+\begin{itemize}
+\item \href{https://modelcontextprotocol.io/docs/concepts/architecture}{modelcontextprotocol.io --- Architecture}
+\item \href{https://modelcontextprotocol.io/docs/develop/build-server}{modelcontextprotocol.io --- Build server (Python)}
+\item \href{https://github.com/modelcontextprotocol/python-sdk}{github --- python-sdk}
+\item \href{https://modelcontextprotocol.io/docs/tools/inspector}{modelcontextprotocol.io --- Inspector}
+\item \href{https://code.claude.com/docs/en/mcp}{code.claude.com --- MCP integration}
+\item Цей репо: \texttt{workshops/07-mcp-servers/exercises/} і \texttt{solutions/}
+\end{itemize}
+
+\end{document}

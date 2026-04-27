@@ -1,0 +1,25 @@
+{
+  "name": "claude-code-sandbox",
+  "build": { "dockerfile": "Dockerfile" },
+
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+
+  "mounts": [
+    "source=claude-code-bashhistory,target=/commandhistory,type=volume",
+    "source=claude-code-config,target=/home/node/.claude,type=volume"
+  ],
+
+  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh",
+
+  "remoteUser": "node",
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "HISTFILE": "/commandhistory/.bash_history"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  }
+}

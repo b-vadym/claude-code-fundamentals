@@ -1,0 +1,46 @@
+{
+  "title": "Workshop 11 — Security & Sandboxing: захист по шарах",
+  "branch": "production",
+  "duration_minutes": 90,
+  "slides_count": 36,
+  "exercises_count": 4,
+  "prerequisites": [
+    "Claude Code v1.x встановлений",
+    "Docker або VS Code Dev Containers extension (для вправи 1)",
+    "git filter-repo або bfg (для вправи 3)",
+    "Базове розуміння settings.json (з workshop 03+)"
+  ],
+  "learning_objectives": [
+    "Зробити devcontainer-обгортку для Claude Code з firewall (default-deny outbound)",
+    "Написати багатошаровий deny-list у settings.json: permissions + sandbox",
+    "Виявити leaked secret у git-історії і прибрати його (rotate + filter-repo)",
+    "Знайти у транскриптах ~/.claude/projects/ хто що читав і виконав",
+    "Скласти defense-in-depth стек: container + sandbox + permissions + hooks"
+  ],
+  "topics": [
+    "Permission system: 3 шари (permissions, sandbox, hooks) і їх взаємодія",
+    "Settings.json: precedence, deny-list patterns, gotchas (curl, compound, wrappers)",
+    "Sandboxing: Seatbelt/bubblewrap, fs+network isolation, /sandbox команда",
+    "Devcontainer: reference setup, init-firewall.sh, --dangerously-skip-permissions",
+    "Secrets: де НЕ зберігати, apiKeyHelper, CLAUDE_CODE_OAUTH_TOKEN, leak response",
+    "Audit: ~/.claude/projects/ транскрипти, ConfigChange hook, OpenTelemetry",
+    "Supply-chain: vetting plugins, MCP servers, skills з side-effects",
+    "Prompt injection: layers захисту, hooks як last-resort"
+  ],
+  "deliverables": [
+    "slides.md (~36 слайдів)",
+    "exercises/ (4 вправи + solutions)",
+    "handout.tex / handout.pdf (LaTeX референс)"
+  ],
+  "research_doc": "research.md",
+  "doc_sources": [
+    "https://code.claude.com/docs/en/security",
+    "https://code.claude.com/docs/en/sandboxing",
+    "https://code.claude.com/docs/en/permissions",
+    "https://code.claude.com/docs/en/settings",
+    "https://code.claude.com/docs/en/devcontainer",
+    "https://code.claude.com/docs/en/authentication",
+    "https://code.claude.com/docs/en/hooks",
+    "https://code.claude.com/docs/en/monitoring-usage"
+  ]
+}

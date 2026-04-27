@@ -1,0 +1,61 @@
+# .gitlab-ci.yml — стартовий шаблон для AI-ревʼю MR
+# Перейменуй на `.gitlab-ci.yml` і поклади у корінь репо.
+# Required CI/CD variable: ANTHROPIC_API_KEY (masked).
+# Optional: GITLAB_ACCESS_TOKEN (для постингу коментарів у MR).
+
+stages:
+  - ai
+
+claude-review:
+  stage: ai
+  image: node:24-alpine3.21
+  timeout: 10 minutes
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  variables:
+    GIT_STRATEGY: fetch
+    GIT_DEPTH: "50"
+  before_script:
+    - apk add --no-cache git curl bash jq
+    - curl -fsSL https://claude.ai/install.sh | bash
+    - export PATH="$HOME/.local/bin:$PATH"
+    - claude --version
+  script:
+    # Fetch the target branch so we can diff against it
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - git diff "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"...HEAD > diff.patch
+    - echo "=== Diff size ==="
+    - wc -l diff.patch
+    # Run Claude review with safe defaults
+    - >
+      cat diff.patch | claude -p
+      --bare
+      --permission-mode plan
+      --output-format json
+      --max-turns 3
+      --max-budget-usd 1.00
+      --no-session-persistence
+      --append-system-prompt "You are a senior code reviewer. Identify bugs, security issues, and style problems in the diff. Be concise. Group findings by file."
+      > review.json
+    - echo "=== Review ==="
+    - jq -r '.result' review.json
+    - echo "=== Stats ==="
+    - echo "Cost - \$$(jq -r '.total_cost_usd' review.json)"
+    - echo "Turns - $(jq -r '.num_turns' review.json)"
+  artifacts:
+    paths:
+      - review.json
+    expire_in: 1 week
+  after_script:
+    # Optional: post review as MR note via GitLab API.
+    # Requires GITLAB_ACCESS_TOKEN (Project Access Token, scope: api).
+    # Uncomment to enable:
+    # - |
+    #   if [ -n "$GITLAB_ACCESS_TOKEN" ] && [ -f review.json ]; then
+    #     review_text=$(jq -r '.result' review.json)
+    #     curl --request POST \
+    #       --header "PRIVATE-TOKEN: $GITLAB_ACCESS_TOKEN" \
+    #       --header "Content-Type: application/json" \
+    #       --data "$(jq -n --arg body "$review_text" '{body: ("**Claude Code review:**\n\n" + $body)}')" \
+    #       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
+    #   fi

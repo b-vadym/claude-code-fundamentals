@@ -10,9 +10,12 @@ Two git workflow skills bundled as a Claude Code plugin.
 ## Install
 
 ```bash
-claude plugin install ./my-git-toolkit
-# or, after publishing to git:
-claude plugin install github:your-name/my-git-toolkit
+# One-shot dev session:
+claude --plugin-dir ./my-git-toolkit
+
+# Persistent install via local marketplace (see workshop 06):
+# /plugin marketplace add ./parent-dir-with-marketplace.json
+# /plugin install my-git-toolkit@<marketplace-name>
 ```
 
 ## Verify

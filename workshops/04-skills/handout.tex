@@ -267,7 +267,7 @@ cp starter/SKILL.md ~/.claude/skills/git-status-summary/SKILL.md
 \subsection{Вправа 4 --- встановити плагін}
 
 \begin{lstlisting}
-claude plugin install ./my-git-toolkit
+claude --plugin-dir ./my-git-toolkit
 # далі:
 /my-git-toolkit:git-status-summary
 /my-git-toolkit:git-bisect-helper <good-sha> <bad-sha>

@@ -210,7 +210,9 @@ WorktreeCreate          → будь-який non-zero валить creation
 
 <v-click class="mt-4">
 
-**Non-blockable events** (`PostToolUse`, `SessionEnd`, …) — exit 2 лише показує stderr юзеру. Заблокувати не може, бо дія вже сталась.
+**Blocking-on-exit-2 events** (скорочений список, повна таблиця в hooks docs): `PreToolUse`, `UserPromptSubmit`, `UserPromptExpansion`, `PermissionRequest`, `Stop`, `SubagentStop`, `PreCompact`, `WorktreeCreate`, `Elicitation`/`ElicitationResult`, `TaskCreated`/`TaskCompleted`, `ConfigChange` (крім `policy_settings`), `TeammateIdle`.
+
+**Non-blockable** (`PostToolUse`, `SessionEnd`, `Notification`, …) — exit 2 лише показує stderr Claude/юзеру; дія вже сталась.
 
 </v-click>
 
@@ -593,14 +595,15 @@ export SLASH_COMMAND_TOOL_CHAR_BUDGET=16000
 |---|---|
 | `~/.claude/skills/X/SKILL.md` (edit) | ❌ Auto-reload |
 | `.claude/skills/X/SKILL.md` (edit) | ❌ Auto-reload |
-| Створив **нову** теку skill-а | ✅ Restart обов'язково |
+| Нова **підтека** skill-а в існуючому `.claude/skills/` | ❌ Auto-reload |
+| Створив сам `.claude/skills/` (вперше у проєкті) | ✅ Restart обов'язково |
 | Plugin skill (edit) | ⚠️ `/reload-plugins` |
 
 </v-clicks>
 
 <v-click class="mt-3">
 
-**Чому restart для нової теки:** Claude Code watch-ить **існуючі** теки. Нова — не у списку watcher-ів. Restart підбере.
+**Чому restart лише для top-level теки:** Claude Code watch-ить існуючі `.claude/skills/`. Якщо її не було при старті сесії — watcher не знає, доки сесія не перезапуститься.
 
 </v-click>
 
@@ -977,10 +980,10 @@ layout: section
 <v-clicks>
 
 1. **Re-invoke skill** — якщо процесний skill «забувся» після compaction
-2. **`/recap`** (silent injection) — підкидає state перед заповненням контексту
+2. **`/compact <focus>`** — manual compact з directive: `/compact keep only the plan and the diff`
 3. **Subagents** — `context: fork` у skill виносить у окрему сесію
-4. **`/compact <focus>`** — manual compact з directive: `/compact keep only the plan and the diff`
-5. **`/clear`** якщо стара частина не потрібна — звільняє все
+4. **`/clear`** якщо стара частина не потрібна — звільняє все
+5. **`/recap`** — one-line підсумок сесії на вимогу (для людини, не для контексту)
 
 </v-clicks>
 
@@ -1049,17 +1052,19 @@ layout: section
 
 ---
 
-# Топ-7 повідомлень
+# Топ-7 симптомів
 
-| Error | Причина | Фікс |
+> Наведені нижче рядки — *описи симптомів*, не дослівні цитати з логу. Конкретний текст помилки залежить від версії Claude Code.
+
+| Симптом | Причина | Фікс |
 |---|---|---|
-| `Hook X exited with code 1` (не блокує, а ти хотів) | exit 1 замість 2 | `exit 2` |
-| `Hook X JSON parse error` | non-JSON у stdout | `exec 2>/dev/null` для shell profile |
-| `Skill X not found` | flat `.md` замість теки | `<name>/SKILL.md` |
-| `MCP server X failed to start` | relative path / missing exec | абсолютний шлях; `--debug mcp` |
-| `MCP X: Connection refused` | endpoint мертвий / stdio process помер | test endpoint manually |
-| `Autocompact is thrashing` | файл reflood-ить контекст | chunks; `/compact <focus>`; `/clear` |
-| `spawn claude ENOENT` (CC як MCP) | Wrong path to `claude` binary | абсолютний шлях у `command` |
+| Hook не блокує, хоч exit non-zero | exit 1 замість 2 | `exit 2` |
+| Hook JSON parse error у логу | non-JSON у stdout (echo з shell profile) | `exec 2>/dev/null` у початку profile |
+| Skill не з'являється у `/`-меню | flat `.md` замість теки | `<name>/SKILL.md` |
+| MCP сервер не стартує | relative path / missing exec | абсолютний шлях; `--debug mcp` |
+| MCP connection refused | endpoint мертвий / stdio process помер | test endpoint manually |
+| `Autocompact is thrashing` (документована помилка) | файл reflood-ить контекст | chunks; `/compact <focus>`; `/clear` |
+| `spawn claude ENOENT` (Node ENOENT) | wrong path to `claude` binary у MCP-конфігу | абсолютний шлях у `command` |
 
 <DocRef url="https://code.claude.com/docs/en/troubleshooting" label="code.claude.com — Error reference" />
 
@@ -1080,7 +1085,7 @@ layout: section
 - [ ] **`--debug <category>`** — у нову сесію (шумно)
 - [ ] **Transcript** — `~/.claude/projects/<slug>/*.jsonl` через jq
 - [ ] **Re-invoke skill** якщо post-compaction
-- [ ] **Restart CC** для нових тек skill / новий plugin
+- [ ] **Restart CC** якщо створив сам `.claude/skills/` (вперше) або встановив новий plugin
 
 </v-clicks>
 

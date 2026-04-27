@@ -172,7 +172,7 @@ Run `git status --short` and present grouped by section.
 - **Метадата (завжди):** ~100 токенів × N skill-ів. Якщо у тебе 50 skill-ів — це 5K токенів **кожної** сесії
 - **Тіло (при тригері):** одноразово завантажується як system message
 - **Auto-compaction:** після стиснення re-injection skill-ів обмежений 25K токенів сумарно
-- **Бюджет описів:** ~1% контекстного вікна (за замовчуванням 8K символів). Перевищиш — обріжуть
+- **Бюджет описів:** масштабується dynamically як 1% контекстного вікна, fallback ~8K символів. Перевищиш — обрізають description-и (імена лишаються)
 
 </v-clicks>
 
@@ -734,7 +734,7 @@ my-git-toolkit/
 
 1. Створи `plugin.json` з `name`, `description`, `version`, `author`
 2. Перенеси два skill-и під `skills/`
-3. Локально встанови: `claude plugin install ./my-git-toolkit`
+3. Локально встанови: `claude --plugin-dir ./my-git-toolkit` (одна сесія)
 4. Тригерни: `/my-git-toolkit:git-status-summary` ← namespaced!
 5. (Бонус) Опублікуй у git-репо, додай до marketplace
 
@@ -837,8 +837,10 @@ Skill не працює. Що першим перевірити.
 - **Conflict з іншим skill** — однакова `name` у проєкті й користувача. Дивимось precedence:
 
 ```
-Enterprise > Personal (~/.claude/) > Project (.claude/) > Plugin
+Enterprise > Personal (~/.claude/) > Project (.claude/)
 ```
+
+Plugin skills — окремий namespace (`/plugin:skill`), тому **не конфліктують** з ланцюгом вище.
 
 </v-clicks>
 
@@ -862,16 +864,16 @@ Precedence я плутав довго. Запам'ятай: ентерпрайз
 
 **Бюджет descriptions:**
 
-- ~1% контекстного вікна = ~8K символів за замовчуванням
-- 100+ skill-ів з довгими description — обріжуть
+- 1% контекстного вікна (fallback ~8K символів)
+- 100+ skill-ів з довгими description — description-и обрізаються (імена завжди в контексті)
 - Підняти: `SLASH_COMMAND_TOOL_CHAR_BUDGET=16000` env var
 - Або: коротші description, особливо для рідко-юзаних skill-ів
 
 **`/reload-plugins`:**
 
-- Після зміни skill у `~/.claude/skills/` — **auto-reload**, без перезапуску
-- Після зміни **plugin** skill — потрібен `/reload-plugins`
-- Створив **нову теку** skill-а → потрібен повний restart
+- Зміна skill-а у `~/.claude/skills/` чи `.claude/skills/` — **auto-reload**, без перезапуску
+- Зміна **plugin** skill — потрібен `/reload-plugins`
+- Створив сам `.claude/skills/` (вперше у проєкті) → restart обов'язковий. Нова підтека skill-а в існуючій — auto
 
 </v-clicks>
 

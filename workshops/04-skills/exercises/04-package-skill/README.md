@@ -31,10 +31,11 @@
    }
    ```
 
-4. Встанови локально:
+4. Встанови локально (одна сесія, для розробки):
    ```bash
-   claude plugin install ./my-git-toolkit
+   claude --plugin-dir ./my-git-toolkit
    ```
+   Для постійного встановлення з marketplace — див. workshop 06.
 
 5. Перевір:
    - `/` має показати `/my-git-toolkit:git-status-summary` і `/my-git-toolkit:git-bisect-helper`

@@ -810,7 +810,7 @@ layout: section
 <DocRef url="https://code.claude.com/docs/en/agent-teams#compare-with-subagents" label="code.claude.com — Compare" />
 
 <!--
-Subagent — твій підручний. Agent team — twoja проєктна команда зі своїм task-board-ом і чатом.
+Subagent — твій підручний. Agent team — твоя проєктна команда зі своїм task-board-ом і чатом.
 -->
 
 ---
@@ -828,7 +828,7 @@ Subagent — твій підручний. Agent team — twoja проєктна 
 
 <v-clicks>
 
-**Vergeissues:**
+**Вимоги:**
 - Claude Code **v2.1.32+**
 - Експериментально, поведінка може змінитися
 - Split-pane mode потребує **tmux** або **iTerm2 + `it2` CLI**

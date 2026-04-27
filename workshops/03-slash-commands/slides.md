@@ -228,7 +228,7 @@ arguments: [name, from, to]
 
 <v-click class="mt-2 text-sm opacity-70">
 
-**Лапки = один токен:** `/migrate "hello world" Vue` → `$0 = "hello world"`, `$1 = "Vue"`.
+**Лапки = один токен:** `/migrate "hello world" Vue` → `$0` = `hello world`, `$1` = `Vue` (лапки самі знімаються).
 
 </v-click>
 
@@ -876,7 +876,7 @@ grep -r disableSkillShellExecution ~/.claude/settings.json /etc/claude-code/mana
 
 <v-clicks>
 
-- Бюджет описів — **1% контекстного вікна** (default ~8K символів)
+- Бюджет описів — **1% контекстного вікна** (fallback ~8K символів)
 - Багато skill-ів + довгі description → обрізаються
 - Кожен `description + when_to_use` сам по собі ≤ 1536 символів
 - **Підняти ліміт:**

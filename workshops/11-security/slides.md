@@ -90,7 +90,7 @@ layout: section
 | **Prompt injection** з файлу/MCP/web | README, doc-string, fetch, clipboard | Те, що Claude може tool-ом |
 | **Compromised MCP server** | npm/git, працює як child process | FS + network юзера |
 | **Compromised plugin** | marketplace, hooks/skills | Те ж + ConfigChange |
-| **Liked secret у `CLAUDE.md`** | Випадковий paste, git push | Назавжди в історії |
+| **Leaked secret у `CLAUDE.md`** | Випадковий paste, git push | Назавжди в історії |
 | **Misconfigured permissions** | `bypassPermissions`, `Bash(*)` | Все |
 | **Stolen credentials** | `~/.claude/.credentials.json`, OAuth | Твій subscription |
 
@@ -98,7 +98,7 @@ layout: section
 
 <v-click class="mt-2 p-2 bg-red-500/10 rounded text-sm">
 
-**Кожна загроза — окремий шар захисту.** Один prap прапорець не закриває все.
+**Кожна загроза — окремий шар захисту.** Один прапорець не закриває все.
 
 </v-click>
 
@@ -137,7 +137,7 @@ layout: section
 <DocRef url="https://code.claude.com/docs/en/security#built-in-protections" label="code.claude.com — Built-in protections" />
 
 <!--
-Цей malebook буде нашим скелетом до кінця воркшопу. На кожному шарі — свій блок, своя вправа.
+Цей playbook буде нашим скелетом до кінця воркшопу. На кожному шарі — свій блок, своя вправа.
 -->
 
 ---
@@ -1095,9 +1095,9 @@ vault read -field=key secret/anthropic/api-key
 - **Refresh:** 5 хв або 401 response
 - **`CLAUDE_CODE_API_KEY_HELPER_TTL_MS`** — кастомний TTL
 - **>10s warning** — оптимізуй якщо повільно
-- **Bare mode (`--bare`) НЕ читає** apiKeyHelper
+- **Bare mode (`--bare`) НЕ читає `CLAUDE_CODE_OAUTH_TOKEN`** — використовуй `ANTHROPIC_API_KEY` або `apiKeyHelper`
 
-**Альтернатива для CI:** `CLAUDE_CODE_OAUTH_TOKEN` через `claude setup-token`.
+**Альтернатива для не-bare CI:** `CLAUDE_CODE_OAUTH_TOKEN` через `claude setup-token`.
 
 </v-clicks>
 
@@ -1135,7 +1135,7 @@ layout: section
 - Кожен tool_result з output (truncated)
 - Системні повідомлення про permission-перевірки
 
-**Не зашифровано at rest.** Лише FS permissions (mode 0600 на credentials, 0644 на transcripts).
+**Не зашифровано at rest.** Credentials — mode 0600 на Linux / Keychain на macOS. Транскрипти — звичайні FS permissions (umask).
 
 </v-clicks>
 
@@ -1572,7 +1572,7 @@ CI зазвичай вже ізольоване — Docker, single-job. Sandbox 
 
 - Себе (терміново)
 - Команду (якщо shared repo / shared cred)
-- Anthropic security (`security@anthropic.com`) якщо bug у Claude Code
+- Anthropic security — через [HackerOne program](https://hackerone.com/anthropic-vdp) якщо vulnerability у Claude Code
 
 </v-clicks>
 

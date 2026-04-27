@@ -119,7 +119,7 @@ Quote з docs: «The CLI was previously called headless mode. The -p flag and al
 
 - **Permission prompts** → нема. Тригернеш `Bash` без allowlist — просто впаде
 - **Skills `/commit` тощо** — недоступні в `-p`. Описуй задачу прозою
-- **Auto mode** — після 3 блоків поспіль аборт, бо нема кого спитати
+- **Auto mode** — повторні блоки (3-in-a-row або 20-total) пауза, у `-p` пауза = abort, бо нема кого спитати
 - **Plan mode interactivity** — нема UI «approve plan»; працює лише як readonly-режим
 - **`@claude` mention listeners** — це окрема надбудова (GitLab MCP / GitHub Action), не сам `-p`
 
@@ -214,13 +214,11 @@ claude -p "Explain auth.py" --output-format stream-json --verbose
 
 # `--output-format json`: що всередині
 
-```json {all|2|3-4|5}{lines:true}
+```json {all|2|3}{lines:true}
 {
   "result": "The auth module handles JWT validation...",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "total_cost_usd": 0.0234,
-  "num_turns": 1,
-  "is_error": false
+  "structured_output": null
 }
 ```
 
@@ -228,8 +226,8 @@ claude -p "Explain auth.py" --output-format stream-json --verbose
 
 - **`result`** — текстова відповідь Claude (те, що в interactive ти бачиш на екрані)
 - **`session_id`** — UUID сесії; зберігай для `--resume`
-- **`total_cost_usd`, `num_turns`** — для моніторингу витрат
-- **`is_error`** — для `if`-логіки в shell
+- **`structured_output`** — заповнюється якщо передано `--json-schema`
+- Документовані поля — лише ці. Решта metadata (usage, model, cost) еволюціонує — звіряй з `claude -p ... --output-format json | jq` поточної версії
 
 </v-clicks>
 
@@ -237,9 +235,8 @@ claude -p "Explain auth.py" --output-format stream-json --verbose
 
 ```bash
 result=$(claude -p "Review this MR" --output-format json)
-cost=$(echo "$result" | jq '.total_cost_usd')
 text=$(echo "$result" | jq -r '.result')
-echo "::notice::Claude review cost \$$cost"
+echo "::notice::$text"
 ```
 
 </v-click>
@@ -389,16 +386,16 @@ Quote з docs: «The space before `*` is important: without it, `Bash(git diff*)
 | Mode | Що автоприймає | CI use case |
 |---|---|---|
 | `default` | Reads only | Sensitive review |
-| `acceptEdits` | Reads + edits + `mkdir`/`mv`/`cp`/`rm`/`sed` | Apply-fix у MR |
+| `acceptEdits` | Reads + edits + common fs (`mkdir`, `touch`, `mv`, `cp`, `rm`, `rmdir`, `sed`) | Apply-fix у MR |
 | `plan` | Reads only | Readonly research |
-| `auto` | Майже все, з classifier | ❌ Не для `-p` |
+| `auto` | Майже все, з classifier | ❌ Не для `-p` (повторні блоки → abort) |
 | **`dontAsk`** | Тільки allow-rules + read-only | ✅ Locked-down CI |
 | `bypassPermissions` | Все, окрім protected paths | Containers/VMs only |
 
 <v-clicks>
 
 - **`dontAsk`** — спеціально для CI. Quote: «useful for locked-down CI runs»
-- **`auto`** — у `-p` після 3 блоків поспіль **abort**. Не використовуй
+- **`auto`** — class пауза при 3-in-a-row або 20-total блоках. У `-p` пауза = **abort**. Не використовуй
 - **`bypassPermissions`** — лише в ізольованому container-і. Інакше небезпечно
 
 </v-clicks>
@@ -990,7 +987,7 @@ layout: section
 3. **Permission prompt у `-p`** — нема allowlist → job hangs до timeout
 4. **Runaway costs** — нема `--max-turns` → необмежені ітерації
 5. **OAuth token + `--bare`** — bare mode не читає `CLAUDE_CODE_OAUTH_TOKEN`
-6. **Auto mode у `-p`** — 3 блоки → abort. Не використовуй для CI
+6. **Auto mode у `-p`** — повторні блоки (3-in-a-row або 20-total) → abort у `-p`. Не використовуй для CI
 7. **`ANTHROPIC_API_KEY` переб'є subscription** — приховано auth-fail
 8. **Plugin failures silent** — без stream-json не побачиш `plugin_errors`
 9. **Skills `/commit` у `-p`** — не працюють; описуй прозою

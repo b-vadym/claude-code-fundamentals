@@ -87,7 +87,7 @@ layout: section
 
 - **Plugin = тека з `.claude-plugin/plugin.json`** — мінімум `name`, інше опційне
 - **`/plugin:skill`** — namespaced invocation
-- **Локальний install:** `--plugin-dir ./path` (одна сесія) або `claude plugin install`
+- **Локальний install:** `--plugin-dir ./path` (одна сесія), або через локальний marketplace: `/plugin marketplace add ./path` + `/plugin install <name>@<marketplace>`
 - **Versioning** — semver vs commit-SHA згадували
 - **Skills/** — теки з `SKILL.md`
 
